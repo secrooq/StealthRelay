@@ -52,7 +52,7 @@ export type WorkerResponse =
   | { type: 'VAULT_DECRYPT_SHARE_META_RESULT'; metadata: { fileName: string } }
   | { type: 'VAULT_DECRYPT_SHARE_FILE_RESULT'; decryptedBuffer: ArrayBuffer };
 
-class SecurityEngine {
+export class SecurityEngine {
   private classifier: any = null;
 
   async initPipeline() {
