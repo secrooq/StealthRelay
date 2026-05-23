@@ -176,8 +176,19 @@ export default function SecretReader({ id }: { id: string }) {
       let keyBuffer: ArrayBuffer | undefined = undefined;
 
       if (!pwd) {
-        const hashParams = new URLSearchParams(window.location.hash.substring(1));
-        let keyBase64 = hashParams.get('key') || window.location.hash.substring(1).replace('key=', '');
+        let keyBase64 = '';
+        const hash = window.location.hash;
+        if (hash.startsWith('#key=')) {
+          keyBase64 = hash.substring(5);
+        } else if (hash.includes('key=')) {
+          const match = hash.match(/key=([^&]+)/);
+          keyBase64 = match ? match[1] : '';
+        } else {
+          keyBase64 = hash.substring(1);
+        }
+        
+        // Restore any '+' characters that URLSearchParams or URL parsing converted to space ' '
+        keyBase64 = keyBase64.replace(/ /g, '+');
         
         if (!keyBase64) throw new Error('Extraction Key not found in secure URL slice.');
         keyBuffer = new Uint8Array(atob(keyBase64).split('').map(c => c.charCodeAt(0))).buffer;

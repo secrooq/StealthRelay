@@ -40,8 +40,35 @@ import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import { getDb, getEnv } from "@/lib/db";
 
+let isHighIterationsSupported: boolean | null = null;
+
+async function checkHighIterationsSupport(): Promise<boolean> {
+  if (isHighIterationsSupported !== null) return isHighIterationsSupported;
+  try {
+    const encTest = new TextEncoder();
+    const testKey = await crypto.subtle.importKey("raw", encTest.encode("test"), { name: "PBKDF2" }, false, ["deriveBits"]);
+    await crypto.subtle.deriveBits(
+      { name: "PBKDF2", salt: encTest.encode("salt"), iterations: 600000, hash: "SHA-256" },
+      testKey,
+      256
+    );
+    isHighIterationsSupported = true;
+  } catch (e) {
+    isHighIterationsSupported = false;
+  }
+  return isHighIterationsSupported;
+}
+
 // High-entropy encryption fallback helper for PBKDF2/SHA256 password derivation
 async function hashPassword(password: string, salt: string, iterations: number = 600000): Promise<string> {
+  let targetIterations = iterations;
+  if (targetIterations > 100000) {
+    const supported = await checkHighIterationsSupport();
+    if (!supported) {
+      targetIterations = 100000;
+    }
+  }
+
   const enc = new TextEncoder();
   const passwordKey = await crypto.subtle.importKey(
     "raw",
@@ -55,7 +82,7 @@ async function hashPassword(password: string, salt: string, iterations: number =
     {
       name: "PBKDF2",
       salt: enc.encode(salt),
-      iterations: iterations,
+      iterations: targetIterations,
       hash: "SHA-256"
     },
     passwordKey,
@@ -69,6 +96,7 @@ async function hashPassword(password: string, salt: string, iterations: number =
     .map(b => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
 
 async function verifyTurnstile(token: string): Promise<boolean> {
   const secret = getEnv("TURNSTILE_SECRET_KEY") || "1x00000000000000000000000000000000AA";

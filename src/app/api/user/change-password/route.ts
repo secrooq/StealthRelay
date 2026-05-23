@@ -5,8 +5,35 @@ import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
+let isHighIterationsSupported: boolean | null = null;
+
+async function checkHighIterationsSupport(): Promise<boolean> {
+  if (isHighIterationsSupported !== null) return isHighIterationsSupported;
+  try {
+    const encTest = new TextEncoder();
+    const testKey = await crypto.subtle.importKey("raw", encTest.encode("test"), { name: "PBKDF2" }, false, ["deriveBits"]);
+    await crypto.subtle.deriveBits(
+      { name: "PBKDF2", salt: encTest.encode("salt"), iterations: 600000, hash: "SHA-256" },
+      testKey,
+      256
+    );
+    isHighIterationsSupported = true;
+  } catch (e) {
+    isHighIterationsSupported = false;
+  }
+  return isHighIterationsSupported;
+}
+
 // High-entropy PBKDF2 hashing helper
 async function hashPassword(password: string, salt: string, iterations: number = 600000): Promise<string> {
+  let targetIterations = iterations;
+  if (targetIterations > 100000) {
+    const supported = await checkHighIterationsSupport();
+    if (!supported) {
+      targetIterations = 100000;
+    }
+  }
+
   const enc = new TextEncoder();
   const passwordKey = await crypto.subtle.importKey(
     "raw",
@@ -20,7 +47,7 @@ async function hashPassword(password: string, salt: string, iterations: number =
     {
       name: "PBKDF2",
       salt: enc.encode(salt),
-      iterations: iterations,
+      iterations: targetIterations,
       hash: "SHA-256"
     },
     passwordKey,
