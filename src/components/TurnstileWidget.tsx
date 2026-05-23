@@ -33,7 +33,23 @@ export default function TurnstileWidget({
 }: TurnstileWidgetProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isReady, setIsReady] = useState(false);
-  const siteKey = TURNSTILE_SITE_KEY;
+  const [siteKey, setSiteKey] = useState("");
+
+  useEffect(() => {
+    async function fetchConfig() {
+      try {
+        const res = await fetch("/api/auth/turnstile-config");
+        const data = await res.json();
+        if (data.siteKey) {
+          setSiteKey(data.siteKey);
+        }
+      } catch (err) {
+        console.error("Failed to load Turnstile config:", err);
+        setSiteKey("0x4AAAAAAADOfEkQcnejCX1Cd");
+      }
+    }
+    fetchConfig();
+  }, []);
 
   useEffect(() => {
     // Check for turnstile availability periodically or on mount
@@ -54,7 +70,7 @@ export default function TurnstileWidget({
   }, []);
 
   useEffect(() => {
-    if (!isReady || !containerRef.current || !window.turnstile) return;
+    if (!isReady || !containerRef.current || !window.turnstile || !siteKey) return;
 
     let widgetId: string | undefined;
 
