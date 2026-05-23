@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEnv } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     // 2. Dispatch to Command Center via Brevo Transactional Email
     const brevoKey = getEnv("BREVO_API_KEY");
     if (!brevoKey) {
-      console.warn("[SUPPORT TICKET] Brevo Key missing. Logging locally.");
+      logger.warn("[SUPPORT TICKET] Brevo Key missing. Logging locally.");
       return NextResponse.json({ success: true, message: "Dev-mode: Support packet received successfully." });
     }
 
@@ -95,13 +96,13 @@ export async function POST(request: NextRequest) {
 
     if (!brevoRes.ok) {
       const errText = await brevoRes.text();
-      console.error("[BREVO TRANSACTIONAL ERROR]", errText);
+      logger.error("[BREVO TRANSACTIONAL ERROR]", errText);
       return NextResponse.json({ error: "Routing vector disrupted. Please transmit via manual email to info@stealthrelay.com." }, { status: 502 });
     }
 
     return NextResponse.json({ success: true, message: "Intel received. Support dispatched." });
   } catch (e: any) {
-    console.error("[SUPPORT EXCEPTION]", e);
+    logger.error("[SUPPORT EXCEPTION]", e);
     return NextResponse.json({ error: "Core terminal disruption." }, { status: 500 });
   }
 }

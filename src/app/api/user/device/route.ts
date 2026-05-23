@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -58,7 +59,7 @@ export async function GET(req: Request) {
       isCurrent: true
     });
   } catch (error) {
-    console.error("[DEVICE_GET_ERROR]", error);
+    logger.error("[DEVICE_GET_ERROR]", error);
     return NextResponse.json({ error: "Failed to detect device." }, { status: 500 });
   }
 }

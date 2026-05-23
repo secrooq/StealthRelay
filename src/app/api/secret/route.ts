@@ -1,6 +1,7 @@
 import { getRequestContext } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -56,7 +57,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ id, success: true });
   } catch (error: any) {
-    console.error('Upload Error:', error);
+    logger.error('Upload Error:', error);
     return NextResponse.json({ error: 'Failed to process secret' }, { status: 500 });
   }
 }

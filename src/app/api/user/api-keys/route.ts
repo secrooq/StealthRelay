@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db";
 import { hashApiKey } from "@/lib/hash";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -42,7 +43,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json({ keys: keys.results || [] });
   } catch (error: any) {
-    console.error("[API_KEYS_GET_ERROR]", error);
+    logger.error("[API_KEYS_GET_ERROR]", error);
     return NextResponse.json({ error: "Failed to retrieve API credentials." }, { status: 500 });
   }
 }
@@ -76,7 +77,7 @@ export async function POST(req: Request) {
       created_at: new Date().toISOString() 
     });
   } catch (error: any) {
-    console.error("[API_KEYS_POST_ERROR]", error);
+    logger.error("[API_KEYS_POST_ERROR]", error);
     return NextResponse.json({ error: "Failed to generate API credential." }, { status: 500 });
   }
 }
@@ -105,7 +106,7 @@ export async function DELETE(req: Request) {
 
     return NextResponse.json({ success: true, message: "API Key revoked successfully." });
   } catch (error: any) {
-    console.error("[API_KEYS_DELETE_ERROR]", error);
+    logger.error("[API_KEYS_DELETE_ERROR]", error);
     return NextResponse.json({ error: "Failed to revoke API credential." }, { status: 500 });
   }
 }

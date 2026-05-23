@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEnv } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -46,12 +47,12 @@ export async function POST(request: NextRequest) {
     const { syncContactToBrevo } = await import("@/lib/email");
     const synced = await syncContactToBrevo(email);
     if (!synced) {
-      console.warn("[BREVO] Sync fallback or partial warning. Continuing gracefully.");
+      logger.warn("[BREVO] Sync fallback or partial warning. Continuing gracefully.");
     }
 
     return NextResponse.json({ success: true, message: "Operational updates initiated." });
   } catch (e: any) {
-    console.error("[SUBSCRIBE EXCEPTION]", e);
+    logger.error("[SUBSCRIBE EXCEPTION]", e);
     return NextResponse.json({ error: "System level disruption." }, { status: 500 });
   }
 }

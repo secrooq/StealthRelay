@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, getEnv } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -19,7 +20,7 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     const outcome: any = await res.json();
     return !!outcome.success;
   } catch (e) {
-    console.error("[TURNSTILE EXCEPTION]", e);
+    logger.error("[TURNSTILE EXCEPTION]", e);
     return false;
   }
 }
@@ -57,7 +58,7 @@ export async function POST(req: Request) {
       iv_rec: user.iv_rec
     });
   } catch (error: any) {
-    console.error("[PRE_RECOVER_ERROR]", error);
+    logger.error("[PRE_RECOVER_ERROR]", error);
     return NextResponse.json({ error: "Failed to retrieve recovery metadata." }, { status: 500 });
   }
 }

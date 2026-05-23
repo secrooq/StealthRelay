@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { initStripe } from "@/lib/stripe";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -93,7 +94,7 @@ async function handleCheckout(req: Request, searchParams: URLSearchParams) {
 
     return NextResponse.json({ url: checkoutSession.url });
   } catch (error: any) {
-    console.error("[STRIPE_CHECKOUT_ERROR] Stripe unavailable or misconfigured. Activating simulation fallback.", error);
+    logger.error("[STRIPE_CHECKOUT_ERROR] Stripe unavailable or misconfigured. Activating simulation fallback.", error);
     
     // Graceful production & development checkout simulation fallback
     const plan = (searchParams.get("plan") || "CONTRACTOR").toUpperCase();

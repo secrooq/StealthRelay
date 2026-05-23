@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyActiveAccess } from '@/lib/subscription';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -84,7 +85,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ slu
 
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   } catch (error: any) {
-    console.error('Vault API GET error:', error);
+    logger.error('Vault API GET error:', error);
     return NextResponse.json({ error: 'Fetch failed' }, { status: 500 });
   }
 }
@@ -253,7 +254,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ sl
 
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   } catch (error: any) {
-    console.error('Vault API Mutate error:', error);
+    logger.error('Vault API Mutate error:', error);
     return NextResponse.json({ error: 'Logic breakdown' }, { status: 500 });
   }
 }

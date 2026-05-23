@@ -1,5 +1,6 @@
 import { sendEmail } from '@/lib/email';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { logger } from "@/lib/logger";
 
 export async function sendSecurityAlert(subject: string, message: string) {
   try {
@@ -12,7 +13,7 @@ export async function sendSecurityAlert(subject: string, message: string) {
     } catch (e) {}
 
     if (!brevoApiKey) {
-      console.error('[SECURITY_MONITOR] Missing BREVO_API_KEY. Cannot dispatch alert:', subject);
+      logger.error('[SECURITY_MONITOR] Missing BREVO_API_KEY. Cannot dispatch alert:', subject);
       return false;
     }
 
@@ -40,7 +41,7 @@ export async function sendSecurityAlert(subject: string, message: string) {
 
     return true;
   } catch (error) {
-    console.error('[SECURITY_MONITOR] Failed to dispatch security alert:', error);
+    logger.error('[SECURITY_MONITOR] Failed to dispatch security alert:', error);
     return false;
   }
 }

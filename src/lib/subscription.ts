@@ -1,6 +1,7 @@
 import { getDb } from "./db";
 import { initStripe } from "./stripe";
 import { isAdminUser } from "./adminGuard";
+import { logger } from "@/lib/logger";
 
 export interface UserSubscription {
   user_id: string;
@@ -23,7 +24,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
   // We check Stripe if there is no record, if the user is on the FREE_TRIAL plan, or if current_period_end is missing.
   if (!sub || sub.plan === 'FREE_TRIAL' || !sub.current_period_end) {
     try {
-      console.log(`[STRIPE_PROACTIVE_SYNC] Initiating sync for email: ${cleanEmail}`);
+      logger.info(`[STRIPE_PROACTIVE_SYNC] Initiating sync for email: ${cleanEmail}`);
       const stripe = initStripe();
       
       // List all customers matching this email (up to 5 to handle duplicate records)
@@ -32,7 +33,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
         limit: 5
       });
 
-      console.log(`[STRIPE_PROACTIVE_SYNC] Found ${customers.data.length} customer records.`);
+      logger.info(`[STRIPE_PROACTIVE_SYNC] Found ${customers.data.length} customer records.`);
 
       let activeSub: any = null;
       let deducedPlan = "FREE_TRIAL";
@@ -48,7 +49,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
         if (subscriptions.data.length > 0) {
           // Found an active subscription!
           activeSub = subscriptions.data[0];
-          console.log(`[STRIPE_PROACTIVE_SYNC] Found active subscription ${activeSub.id} for customer ${customer.id}`);
+          logger.info(`[STRIPE_PROACTIVE_SYNC] Found active subscription ${activeSub.id} for customer ${customer.id}`);
           break;
         }
       }
@@ -96,7 +97,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
         const now = new Date().toISOString();
         deducedPlan = plan;
 
-        console.log(`[STRIPE_PROACTIVE_SYNC] Deduced plan: ${plan}, Period End: ${periodEnd}`);
+        logger.info(`[STRIPE_PROACTIVE_SYNC] Deduced plan: ${plan}, Period End: ${periodEnd}`);
 
         // Update database with the active subscription details
         await db.prepare(`
@@ -118,7 +119,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
         };
       }
     } catch (stripeErr: any) {
-      console.error("[STRIPE_SYNC_WARNING] Proactive subscription lookup failed.", stripeErr.message, stripeErr.stack);
+      logger.error("[STRIPE_SYNC_WARNING] Proactive subscription lookup failed.", stripeErr.message, stripeErr.stack);
     }
   }
 
@@ -155,7 +156,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
     if (expiry + 3 * 24 * 60 * 60 * 1000 < Date.now()) {
       if (sub.status === 'EXPIRED' || (sub.plan === 'CONTRACTOR' && sub.status === 'ACTIVE')) {
         try {
-          console.log(`[TRIAL_EXPIRED_PURGE] 3 Days Past Expiration. Purging expired trial data for user: ${cleanEmail}`);
+          logger.info(`[TRIAL_EXPIRED_PURGE] 3 Days Past Expiration. Purging expired trial data for user: ${cleanEmail}`);
           await db.prepare("DELETE FROM vault_files WHERE user_id = ?").bind(cleanEmail).run();
           await db.prepare("DELETE FROM relay_aliases WHERE user_id = ?").bind(cleanEmail).run();
           await db.prepare("DELETE FROM user_mailboxes WHERE user_id = ?").bind(cleanEmail).run();
@@ -172,7 +173,7 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
 
           sub.status = 'EXPIRED';
         } catch (purgeErr) {
-          console.error("[PURGE_ERROR] Failed to auto-delete user data:", purgeErr);
+          logger.error("[PURGE_ERROR] Failed to auto-delete user data:", purgeErr);
         }
       }
     }
@@ -206,7 +207,7 @@ export async function verifyActiveAccess(userId: string): Promise<boolean> {
       return true;
     }
   } catch (e) {
-    console.warn("verifyActiveAccess: Failed querying security_personnel. Falling back to default role checks.");
+    logger.warn("verifyActiveAccess: Failed querying security_personnel. Falling back to default role checks.");
   }
 
   if (await isAdminUser()) {
