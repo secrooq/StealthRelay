@@ -401,7 +401,8 @@ class SecurityEngine {
             finalPayload = await sanitizedBlob.arrayBuffer();
           }
         } catch (imgErr) {
-          console.warn("Image metadata bleaching failure. Reverting to original payload to maintain reliability.", imgErr);
+          console.warn("Image metadata bleaching failure.", imgErr);
+          throw new Error("EXIF_BLEACH_FAILED: Refusing to share payload to maintain zero-knowledge guarantee.");
         }
       }
 

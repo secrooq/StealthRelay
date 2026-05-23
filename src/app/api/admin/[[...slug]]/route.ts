@@ -716,7 +716,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       }
 
       // Generate dynamic OTP for this specific email
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const randomBuffer = new Uint32Array(1);
+      crypto.getRandomValues(randomBuffer);
+      const otpCode = (100000 + (randomBuffer[0] % 900000)).toString();
       const expiresAt = Date.now() + 5 * 60 * 1000;
 
       await db.batch([
@@ -773,7 +775,9 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       }
 
       // Generate dynamic OTP for this specific email
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const randomBuffer = new Uint32Array(1);
+      crypto.getRandomValues(randomBuffer);
+      const otpCode = (100000 + (randomBuffer[0] % 900000)).toString();
       const expiresAt = Date.now() + 5 * 60 * 1000;
 
       await db.batch([
