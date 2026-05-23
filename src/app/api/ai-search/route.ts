@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -23,7 +24,7 @@ export async function POST(request: Request) {
     
     // Graceful local dev fallback if Cloudflare environment variables are not fully bound
     if (!ctx || !ctx.env || !ctx.env.AI) {
-      console.warn('Cloudflare AI binding not detected, falling back to exact substring local search.');
+      logger.warn('Cloudflare AI binding not detected, falling back to exact substring local search.');
       // Simple exact match logic for developer testing
       const lowercaseQuery = query.toLowerCase();
       const matched = items.filter(item => {
@@ -142,7 +143,7 @@ export async function POST(request: Request) {
 
           matchedIds = JSON.parse(cleanText);
         } catch (err) {
-          console.error('Failed to parse AI JSON output, raw text was:', rawText);
+          logger.error('Failed to parse AI JSON output, raw text was:', rawText);
           // Extract using Regex if there is extraneous conversational text
           const arrayMatch = rawText.match(/\[\s*["']?[\s\S]*["']?\s*\]/);
           if (arrayMatch) {
@@ -158,7 +159,7 @@ export async function POST(request: Request) {
         }
       }
     } catch (aiError: any) {
-      console.error('Cloudflare AI service invocation failed, triggering emergency substring search fallback:', aiError.message);
+      logger.error('Cloudflare AI service invocation failed, triggering emergency substring search fallback:', aiError.message);
       const lowercaseQuery = query.toLowerCase();
       const matched = items.filter(item => {
         const targetStr = JSON.stringify(item).toLowerCase();
@@ -179,7 +180,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ matchedIds });
   } catch (err: any) {
-    console.error('AI Search general exception:', err);
+    logger.error('AI Search general exception:', err);
     return NextResponse.json({ error: err.message || 'Internal AI Processing Failure' }, { status: 500 });
   }
 }

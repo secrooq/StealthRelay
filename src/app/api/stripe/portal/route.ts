@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { initStripe } from "@/lib/stripe";
 import { getRequestContext } from "@cloudflare/next-on-pages";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -17,7 +18,7 @@ export async function POST(req: Request) {
 
     // Dynamic Development Sandbox Override
     if (process.env.NODE_ENV === "development") {
-      console.log(`[STRIPE_PORTAL] Dev mode detected. Launching offline billing portal simulator for ${email}`);
+      logger.info(`[STRIPE_PORTAL] Dev mode detected. Launching offline billing portal simulator for ${email}`);
       return NextResponse.json({ url: `/pricing/portal-simulator` });
     }
 
@@ -36,7 +37,7 @@ export async function POST(req: Request) {
     });
 
     if (customers.data.length === 0) {
-      console.log(`[STRIPE_PORTAL] Customer identity not found for ${email}. Redirecting to simulation portal.`);
+      logger.info(`[STRIPE_PORTAL] Customer identity not found for ${email}. Redirecting to simulation portal.`);
       return NextResponse.json({ url: "/pricing/portal-simulator" });
     }
 
@@ -49,7 +50,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: portalSession.url });
   } catch (error: any) {
-    console.error("[STRIPE_PORTAL_ERROR] Stripe unavailable or misconfigured. Launching offline portal simulator.", error);
+    logger.error("[STRIPE_PORTAL_ERROR] Stripe unavailable or misconfigured. Launching offline portal simulator.", error);
     return NextResponse.json({ url: "/pricing/portal-simulator" });
   }
 }

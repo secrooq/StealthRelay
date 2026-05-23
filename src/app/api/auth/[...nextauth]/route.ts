@@ -1,5 +1,6 @@
 import { handlers } from "@/auth";
 import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -10,7 +11,7 @@ function bindContext() {
       (globalThis as any).__cloudflare_env = ctx.env;
     }
   } catch (err) {
-    console.error("[AUTH_ROUTE_BIND_CONTEXT_ERROR]", err);
+    logger.error("[AUTH_ROUTE_BIND_CONTEXT_ERROR]", err);
   }
 }
 

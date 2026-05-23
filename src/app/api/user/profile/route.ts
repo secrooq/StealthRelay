@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -28,7 +29,7 @@ export async function GET(req: Request) {
       twoFactorSecret: user.two_factor_secret || ""
     });
   } catch (error: any) {
-    console.error("[PROFILE_GET_ERROR]", error);
+    logger.error("[PROFILE_GET_ERROR]", error);
     return NextResponse.json({ error: "Failed to retrieve security profile." }, { status: 500 });
   }
 }
@@ -72,7 +73,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: "Security settings ledger updated." });
   } catch (error: any) {
-    console.error("[PROFILE_POST_ERROR]", error);
+    logger.error("[PROFILE_POST_ERROR]", error);
     return NextResponse.json({ error: "Failed to update security profile." }, { status: 500 });
   }
 }

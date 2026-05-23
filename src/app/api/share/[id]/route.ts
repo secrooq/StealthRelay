@@ -1,5 +1,6 @@
 import { getRequestContext } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       requiresPassword: !!share.access_password_hash
     });
   } catch (error) {
-    console.error('Public share fetch failure:', error);
+    logger.error('Public share fetch failure:', error);
     return NextResponse.json({ error: 'Zero-knowledge bridge disruption' }, { status: 500 });
   }
 }
@@ -89,7 +90,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
 
     return NextResponse.json({ success: true, verified: true });
   } catch (error) {
-    console.error('Password verification failure:', error);
+    logger.error('Password verification failure:', error);
     return NextResponse.json({ error: 'Handshake disruption' }, { status: 500 });
   }
 }

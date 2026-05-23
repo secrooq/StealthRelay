@@ -3,6 +3,7 @@ import { auth } from '@/auth';
 import { getDb } from '@/lib/db';
 import { v4 as uuidv4 } from 'uuid';
 import { getSubscriptionStatus, verifyActiveAccess } from '@/lib/subscription';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ domains: results || [] });
   } catch (error: any) {
-    console.error('[DOMAINS_GET_ERROR]', error);
+    logger.error('[DOMAINS_GET_ERROR]', error);
     return NextResponse.json({ error: 'Failed to retrieve custom domain records.' }, { status: 500 });
   }
 }
@@ -108,7 +109,7 @@ export async function POST(request: NextRequest) {
     if (error.message && error.message.includes('UNIQUE')) {
       return NextResponse.json({ error: 'This domain name is already registered.' }, { status: 400 });
     }
-    console.error('[DOMAINS_POST_ERROR]', error);
+    logger.error('[DOMAINS_POST_ERROR]', error);
     return NextResponse.json({ error: 'Failed to register domain.' }, { status: 500 });
   }
 }

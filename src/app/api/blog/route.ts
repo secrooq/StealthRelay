@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { requireAdmin } from "@/lib/adminGuard";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -15,7 +16,7 @@ export async function GET() {
 
     return NextResponse.json(results);
   } catch (error: any) {
-    console.error("Blog fetch failure:", error);
+    logger.error("Blog fetch failure:", error);
     return NextResponse.json({ error: "Failed to retrieve briefings." }, { status: 500 });
   }
 }

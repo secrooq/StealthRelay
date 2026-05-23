@@ -3,6 +3,7 @@ import { getRequestContext } from '@cloudflare/next-on-pages';
 import { requireAdmin, getAdminSession, seedSecurityPersonnel, signSession } from '@/lib/adminGuard';
 import { cookies } from 'next/headers';
 import { logAudit } from '@/lib/audit';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -188,7 +189,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
         const ctx = getRequestContext();
         db = ctx?.env?.DB;
       } catch (ctxErr) {
-        console.warn("ADMIN_STATS: Could not get request context, falling back to null DB");
+        logger.warn("ADMIN_STATS: Could not get request context, falling back to null DB");
       }
 
       let userCount = 0;
@@ -209,7 +210,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
             totalCapacity = Number(fileStats.total_bytes || 0);
           }
         } catch (e: any) {
-          console.error("ADMIN_STATS: Failed to query vault_files.", e.message);
+          logger.error("ADMIN_STATS: Failed to query vault_files.", e.message);
         }
 
         try {
@@ -222,7 +223,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
             forwardCount = Number(emailStats.total_forwards || 0);
           }
         } catch (e: any) {
-          console.error("ADMIN_STATS: Failed to query relay_aliases.", e.message);
+          logger.error("ADMIN_STATS: Failed to query relay_aliases.", e.message);
         }
 
         try {
@@ -234,7 +235,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
             userCount = Number(userStats.total_users || 0);
           }
         } catch (e: any) {
-          console.error("ADMIN_STATS: Failed to query vault_users.", e.message);
+          logger.error("ADMIN_STATS: Failed to query vault_users.", e.message);
         }
 
         try {
@@ -247,7 +248,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
             secretCount = Number(secretStats.active_secrets || 0);
           }
         } catch (e: any) {
-          console.error("ADMIN_STATS: Failed to query stealth_secrets.", e.message);
+          logger.error("ADMIN_STATS: Failed to query stealth_secrets.", e.message);
         }
       }
 
@@ -292,7 +293,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
           });
         }
       } catch (e) {
-        console.warn('Metadata file capacity tracking bypassed.', e);
+        logger.warn('Metadata file capacity tracking bypassed.', e);
       }
 
       const users = (dbUsers || []).map((u: any) => {
@@ -507,7 +508,7 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
 
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   } catch (error: any) {
-    console.error('Admin API Fetch Exception:', error);
+    logger.error('Admin API Fetch Exception:', error);
     const isForbidden = error.message?.includes('403') || error.message?.includes('Forbidden') || error.message?.includes('clearance') || error.message?.includes('Clearance');
     return NextResponse.json(
       { error: error.message || 'Clearance failure' }, 
@@ -532,7 +533,7 @@ async function verifyTurnstile(token: string, secretKey?: string): Promise<boole
     const outcome: any = await res.json();
     return !!outcome.success;
   } catch (e) {
-    console.error("[TURNSTILE EXCEPTION]", e);
+    logger.error("[TURNSTILE EXCEPTION]", e);
     return false;
   }
 }
@@ -1035,7 +1036,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
 
     return NextResponse.json({ error: 'Not Found' }, { status: 404 });
   } catch (error: any) {
-    console.error('Admin API Mutate Exception:', error);
+    logger.error('Admin API Mutate Exception:', error);
     return NextResponse.json(
       { error: error.message || 'Internal secure gate failure.' }, 
       { status: 500 }

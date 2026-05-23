@@ -1,5 +1,6 @@
 import { getRequestContext } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -62,7 +63,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
     if (secretRecord.allowed_countries) {
       const list = secretRecord.allowed_countries.split(',').map((c: string) => c.trim().toUpperCase());
       if (!clientCountry || !list.includes(clientCountry.toUpperCase())) {
-        console.warn(`[SECURITY] Geo-Block triggered. Incoming: ${clientCountry}. Required: ${list}`);
+        logger.warn(`[SECURITY] Geo-Block triggered. Incoming: ${clientCountry}. Required: ${list}`);
         return NextResponse.json({ 
           error: 'ACCESS DENIED: This intelligence is geofenced and not authorized for retrieval in your current operating theater.' 
         }, { status: 403 });
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
       });
 
       if (!isMatch) {
-         console.warn(`[SECURITY] IP-Block triggered. Incoming: ${clientIp}`);
+         logger.warn(`[SECURITY] IP-Block triggered. Incoming: ${clientIp}`);
          return NextResponse.json({ 
           error: 'ACCESS DENIED: Unauthorized physical vector. Target source IP does not match predefined clearance manifests.' 
         }, { status: 403 });
@@ -105,7 +106,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
        const domainList = secretRecord.allowed_domains.split(',').map((d: string) => d.trim().toLowerCase());
 
        if (!viewerDomain || !domainList.includes(viewerDomain)) {
-         console.warn(`[SECURITY] Domain-Block triggered. Incoming domain: ${viewerDomain}`);
+         logger.warn(`[SECURITY] Domain-Block triggered. Incoming domain: ${viewerDomain}`);
          return NextResponse.json({ 
            error: `ACCESS DENIED: Your organizational unit (${viewerDomain}) lacks the requisite clearance to access this classified block.` 
          }, { status: 403 });
@@ -144,7 +145,7 @@ export async function GET(request: NextRequest, context: { params: Promise<{ id:
 
     return new NextResponse(fileBytes, { headers });
   } catch (error: any) {
-    console.error('Retrieve Error:', error);
+    logger.error('Retrieve Error:', error);
     return NextResponse.json({ error: 'Failed to retrieve secret' }, { status: 500 });
   }
 }

@@ -1,5 +1,6 @@
 import { getDb } from "./db";
 import { hashApiKey } from "./hash";
+import { logger } from "@/lib/logger";
 
 export interface ApiKeyValidationResult {
   isValid: boolean;
@@ -76,7 +77,7 @@ export async function validateApiKey(req: Request): Promise<ApiKeyValidationResu
       userId: record.user_id
     };
   } catch (error) {
-    console.error("[API_KEY_GUARD_ERROR]", error);
+    logger.error("[API_KEY_GUARD_ERROR]", error);
     return { isValid: false };
   }
 }

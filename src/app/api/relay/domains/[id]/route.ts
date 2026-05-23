@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@/auth';
 import { getDb } from '@/lib/db';
 import { verifyActiveAccess } from '@/lib/subscription';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -45,7 +46,7 @@ export async function DELETE(
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('[DOMAIN_DELETE_ERROR]', error);
+    logger.error('[DOMAIN_DELETE_ERROR]', error);
     return NextResponse.json({ error: 'Failed to delete domain record.' }, { status: 500 });
   }
 }
@@ -124,7 +125,7 @@ export async function POST(
       error: `Verification token mismatch. Ensure a TXT record for ${domain.domain_name} contains "stealthrelay-verification=${id}".` 
     });
   } catch (error: any) {
-    console.error('[DOMAIN_VERIFY_ERROR]', error);
+    logger.error('[DOMAIN_VERIFY_ERROR]', error);
     return NextResponse.json({ error: 'Failed to verify DNS status.' }, { status: 500 });
   }
 }

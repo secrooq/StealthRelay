@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 import { getDb, getRequestContext, getEnv } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 
@@ -20,7 +21,7 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     const outcome: any = await res.json();
     return !!outcome.success;
   } catch (e) {
-    console.error("[TURNSTILE EXCEPTION]", e);
+    logger.error("[TURNSTILE EXCEPTION]", e);
     return false;
   }
 }
@@ -61,7 +62,7 @@ export async function POST(req: Request) {
     const brevoApiKey = getEnv("BREVO_API_KEY");
 
     if (!brevoApiKey) {
-      console.error("BREVO_API_KEY missing from Edge Context.");
+      logger.error("BREVO_API_KEY missing from Edge Context.");
       return NextResponse.json({ error: "SMTP delivery network offline." }, { status: 500 });
     }
 
@@ -188,7 +189,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: "Magic link transmission dispatched successfully." });
   } catch (error: any) {
-    console.error("[MAGIC_REQUEST_ERROR]", error);
+    logger.error("[MAGIC_REQUEST_ERROR]", error);
     return NextResponse.json({ error: "Failed to generate entry link." }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { generateSecret, generateURI } from "otplib";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
       uri
     });
   } catch (error: any) {
-    console.error("[2FA_GENERATE_ERROR]", error);
+    logger.error("[2FA_GENERATE_ERROR]", error);
     return NextResponse.json({ error: "Failed to generate security matrix." }, { status: 500 });
   }
 }

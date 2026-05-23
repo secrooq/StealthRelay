@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -50,11 +51,11 @@ export async function POST(req: Request) {
       VALUES (?, ?, 'ACTIVE', ?, ?, 'mock', ?)
     `).bind(email, plan, expiryStr, createdStr, seatCount).run();
 
-    console.log(`[MOCK_CHECKOUT_CONFIRM] Subscription successfully upgraded for ${email} -> Plan: ${plan}, Billing: ${billing}`);
+    logger.info(`[MOCK_CHECKOUT_CONFIRM] Subscription successfully upgraded for ${email} -> Plan: ${plan}, Billing: ${billing}`);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error("[MOCK_CONFIRM_ERROR]", error);
+    logger.error("[MOCK_CONFIRM_ERROR]", error);
     return NextResponse.json({ error: error.message || "Failed to update simulated billing state." }, { status: 500 });
   }
 }

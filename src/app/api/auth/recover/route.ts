@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb, getEnv } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -48,7 +49,7 @@ async function verifyTurnstile(token: string): Promise<boolean> {
     const outcome: any = await res.json();
     return !!outcome.success;
   } catch (e) {
-    console.error("[TURNSTILE EXCEPTION]", e);
+    logger.error("[TURNSTILE EXCEPTION]", e);
     return false;
   }
 }
@@ -94,7 +95,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: "Security credentials successfully re-keyed. Identity recovered." });
   } catch (error: any) {
-    console.error("[RECOVER_ERROR]", error);
+    logger.error("[RECOVER_ERROR]", error);
     return NextResponse.json({ error: "Failed to execute identity recovery." }, { status: 500 });
   }
 }

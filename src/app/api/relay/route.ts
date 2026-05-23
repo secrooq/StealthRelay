@@ -5,6 +5,7 @@ import { generateMaskedAlias } from '@/lib/aliasGenerator';
 import { v4 as uuidv4 } from 'uuid';
 import { verifyActiveAccess } from '@/lib/subscription';
 import { validateApiKey } from '@/lib/apiKeyGuard';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({ aliases: results || [] });
   } catch (error: any) {
-    console.error('[RELAY_LIST_ERROR]', error);
+    logger.error('[RELAY_LIST_ERROR]', error);
     return NextResponse.json({ error: 'Database failure' }, { status: 500 });
   }
 }
@@ -94,7 +95,7 @@ export async function POST(request: NextRequest) {
         activeDomain = domainConfig.value.trim();
       }
     } catch (cfgErr) {
-      console.log("Note: Using default domain, system_config lookup failed or uninitialized");
+      logger.info("Note: Using default domain, system_config lookup failed or uninitialized");
     }
 
     const reqDomain = body.domain?.trim().toLowerCase();
@@ -133,7 +134,7 @@ export async function POST(request: NextRequest) {
       } 
     });
   } catch (error: any) {
-    console.error('[RELAY_CREATE_ERROR]', error);
+    logger.error('[RELAY_CREATE_ERROR]', error);
     return NextResponse.json({ error: 'Failed to create alias' }, { status: 500 });
   }
 }

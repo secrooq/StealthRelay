@@ -1,6 +1,7 @@
 import { getRequestContext } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ id, success: true });
   } catch (error: any) {
-    console.error('Guest Secret API Exception:', error);
+    logger.error('Guest Secret API Exception:', error);
     return NextResponse.json({ error: 'Cloud Edge infrastructure failed to seal secret.' }, { status: 500 });
   }
 }

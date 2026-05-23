@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { initStripe, getStripeWebhookSecret } from "@/lib/stripe";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import { sendEmail } from "@/lib/email";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -12,7 +13,7 @@ async function getDynamicEmailTemplate(db: any, templateId: string, defaults: { 
       return { subject: row.subject, body: row.body };
     }
   } catch (err) {
-    console.warn(`[DYNAMIC_TEMPLATE_WARNING] Failed to fetch template ${templateId}. Falling back to default.`);
+    logger.warn(`[DYNAMIC_TEMPLATE_WARNING] Failed to fetch template ${templateId}. Falling back to default.`);
   }
   return defaults;
 }
@@ -30,7 +31,7 @@ export async function POST(req: Request) {
 
   // In production, reject unauthenticated webhook requests
   if (process.env.NODE_ENV === "production" && (!webhookSecret || !sig)) {
-    console.error("[STRIPE_WEBHOOK_ERROR] Signature and Webhook Secret are mandatory in production nodes.");
+    logger.error("[STRIPE_WEBHOOK_ERROR] Signature and Webhook Secret are mandatory in production nodes.");
     return NextResponse.json({ error: "Signature and Webhook Secret are mandatory in production nodes." }, { status: 400 });
   }
 
@@ -39,16 +40,16 @@ export async function POST(req: Request) {
       // Strict signature verification in production
       event = await stripe.webhooks.constructEventAsync(payload, sig, webhookSecret);
     } else {
-      console.warn("[STRIPE_WEBHOOK] Signature verification skipped (missing webhook secret). Parsing raw payload.");
+      logger.warn("[STRIPE_WEBHOOK] Signature verification skipped (missing webhook secret). Parsing raw payload.");
       event = JSON.parse(payload);
     }
   } catch (err: any) {
-    console.error(`[STRIPE_WEBHOOK_VERIFY_ERROR] ${err.message}`);
+    logger.error(`[STRIPE_WEBHOOK_VERIFY_ERROR] ${err.message}`);
     return NextResponse.json({ error: `Webhook error: ${err.message}` }, { status: 400 });
   }
 
   const type = event.type;
-  console.log(`[STRIPE_WEBHOOK] Received event: ${type}`);
+  logger.info(`[STRIPE_WEBHOOK] Received event: ${type}`);
 
   try {
     // 1. Subscription completed / checkout succeeded
@@ -78,7 +79,7 @@ export async function POST(req: Request) {
             source = 'stripe_webhook'
         `).bind(email, metadataPlan, periodEnd, now, metadataPlan, periodEnd, now).run();
 
-        console.log(`[STRIPE_WEBHOOK] Successfully activated ${metadataPlan} for: ${email}`);
+        logger.info(`[STRIPE_WEBHOOK] Successfully activated ${metadataPlan} for: ${email}`);
 
         // DISPATCH SECURE SUBSCRIPTION CONFIRMATION EMAIL
         const brevoApiKey = env.BREVO_API_KEY || process.env.BREVO_API_KEY;
@@ -137,7 +138,7 @@ export async function POST(req: Request) {
             source = 'stripe_webhook'
         `).bind(email, metadataPlan, periodEnd, now, metadataPlan, periodEnd, now).run();
 
-        console.log(`[STRIPE_WEBHOOK] Successfully renewed subscription ${metadataPlan} for: ${email}`);
+        logger.info(`[STRIPE_WEBHOOK] Successfully renewed subscription ${metadataPlan} for: ${email}`);
 
         // DISPATCH SECURE RENEWAL NOTIFICATION EMAIL
         const brevoApiKey = env.BREVO_API_KEY || process.env.BREVO_API_KEY;
@@ -187,7 +188,7 @@ export async function POST(req: Request) {
           WHERE user_id = ?
         `).bind(now, email).run();
 
-        console.log(`[STRIPE_WEBHOOK] Subscription state updated to EXPIRED for: ${email}`);
+        logger.info(`[STRIPE_WEBHOOK] Subscription state updated to EXPIRED for: ${email}`);
 
         // DISPATCH SUBSCRIPTION EXPIRY/CANCELLATION NOTIFICATION EMAIL
         const brevoApiKey = env.BREVO_API_KEY || process.env.BREVO_API_KEY;
@@ -264,7 +265,7 @@ export async function POST(req: Request) {
             source = 'stripe_webhook'
         `).bind(email, plan, dbStatus, periodEnd, now, plan, dbStatus, periodEnd, now).run();
 
-        console.log(`[STRIPE_WEBHOOK] Subscription updated for ${email} -> Plan: ${plan}, Status: ${dbStatus}`);
+        logger.info(`[STRIPE_WEBHOOK] Subscription updated for ${email} -> Plan: ${plan}, Status: ${dbStatus}`);
 
         // DISPATCH SUBSCRIPTION UPDATE EMAIL
         const brevoApiKey = env.BREVO_API_KEY || process.env.BREVO_API_KEY;
@@ -302,7 +303,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error("[STRIPE_WEBHOOK_PROCESSING_ERROR]", error);
+    logger.error("[STRIPE_WEBHOOK_PROCESSING_ERROR]", error);
     return NextResponse.json({ error: "Failed to compile webhook update." }, { status: 500 });
   }
 }
