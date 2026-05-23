@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db";
+import { hashApiKey } from "@/lib/hash";
 
 export const runtime = "edge";
 
@@ -10,10 +11,18 @@ async function ensureTable(db: any) {
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
       api_key TEXT UNIQUE NOT NULL,
+      masked_key TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_used_at DATETIME
     )
   `).run();
+
+  try {
+    // Add masked_key column if it doesn't exist
+    await db.prepare("ALTER TABLE user_api_keys ADD COLUMN masked_key TEXT").run();
+  } catch (e: any) {
+    // Ignore error if column already exists
+  }
 }
 
 export async function GET(req: Request) {
@@ -28,7 +37,7 @@ export async function GET(req: Request) {
     await ensureTable(db);
 
     const keys = await db.prepare(
-      "SELECT id, api_key, created_at, last_used_at FROM user_api_keys WHERE user_id = ? ORDER BY created_at DESC"
+      "SELECT id, COALESCE(masked_key, api_key) as api_key, created_at, last_used_at FROM user_api_keys WHERE user_id = ? ORDER BY created_at DESC"
     ).bind(email).all();
 
     return NextResponse.json({ keys: keys.results || [] });
@@ -53,11 +62,13 @@ export async function POST(req: Request) {
     const randomBytes = crypto.getRandomValues(new Uint8Array(24));
     const hex = Array.from(randomBytes, byte => byte.toString(16).padStart(2, '0')).join('');
     const newApiKey = `sr_live_${hex}`;
+    const maskedKey = `sr_live_...${hex.slice(-4)}`;
     const id = crypto.randomUUID();
+    const hashedKey = await hashApiKey(newApiKey);
 
     await db.prepare(
-      "INSERT INTO user_api_keys (id, user_id, api_key) VALUES (?, ?, ?)"
-    ).bind(id, email, newApiKey).run();
+      "INSERT INTO user_api_keys (id, user_id, api_key, masked_key) VALUES (?, ?, ?, ?)"
+    ).bind(id, email, hashedKey, maskedKey).run();
 
     return NextResponse.json({ 
       id, 
