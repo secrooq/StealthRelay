@@ -28,7 +28,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com *.clerk.com *.clerk.accounts.dev; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; frame-src 'self' https://challenges.cloudflare.com *.stripe.com *.clerk.com *.clerk.accounts.dev; connect-src 'self' *.clerk.com *.clerk.accounts.dev *.stripe.com https://challenges.cloudflare.com",
+            value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://challenges.cloudflare.com; font-src 'self' https://fonts.gstatic.com https://challenges.cloudflare.com; frame-src 'self' https://challenges.cloudflare.com *.stripe.com; connect-src 'self' *.stripe.com https://challenges.cloudflare.com",
           },
         ],
       },
