@@ -95,7 +95,7 @@ export class SecurityEngine {
     }
   }
 
-  private async deriveKeyFromText(text: string, saltBuffer: ArrayBuffer): Promise<CryptoKey> {
+  private async deriveKeyFromText(text: string, saltBuffer: ArrayBuffer, iterations: number = 600000): Promise<CryptoKey> {
     const enc = new TextEncoder();
     const keyMaterial = await crypto.subtle.importKey(
       'raw',
@@ -109,7 +109,7 @@ export class SecurityEngine {
       {
         name: 'PBKDF2',
         salt: saltBuffer,
-        iterations: 100000, // Industry standard
+        iterations: iterations, // OWASP recommended
         hash: 'SHA-256'
       },
       keyMaterial,
@@ -159,6 +159,14 @@ export class SecurityEngine {
       if (password && salt) {
         const saltBuffer = base64ToArrayBuffer(salt);
         key = await this.deriveKeyFromText(password, saltBuffer);
+        try {
+          const decryptedBuffer = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: ivBuffer }, key, encryptedBuffer);
+          self.postMessage({ type: 'DECRYPT_RESULT', decryptedBuffer });
+          return;
+        } catch (err) {
+          // Fallback to legacy iterations
+          key = await this.deriveKeyFromText(password, saltBuffer, 100000);
+        }
       } else if (keyBuffer) {
         key = await crypto.subtle.importKey('raw', keyBuffer, { name: 'AES-GCM' }, false, ['decrypt']);
       } else {
@@ -226,14 +234,25 @@ export class SecurityEngine {
       const ivBuffer = base64ToArrayBuffer(ivBase64);
 
       // Derive the unlocking key
-      const derivationKey = await this.deriveKeyFromText(input, saltBuffer);
+      let derivationKey = await this.deriveKeyFromText(input, saltBuffer);
 
       // Unwrap the VaultKey
-      const rawVaultKey = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: ivBuffer },
-        derivationKey,
-        wrappedBuffer
-      );
+      let rawVaultKey;
+      try {
+        rawVaultKey = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: ivBuffer },
+          derivationKey,
+          wrappedBuffer
+        );
+      } catch (err) {
+        // Fallback to legacy iterations
+        derivationKey = await this.deriveKeyFromText(input, saltBuffer, 100000);
+        rawVaultKey = await crypto.subtle.decrypt(
+          { name: 'AES-GCM', iv: ivBuffer },
+          derivationKey,
+          wrappedBuffer
+        );
+      }
 
       self.postMessage({
         type: 'VAULT_UNLOCK_RESULT',
@@ -269,6 +288,11 @@ export class SecurityEngine {
 
   // Step 3: Encrypt individual Vault File
   async vaultEncryptFile(vaultKeyBase64: string, fileBuffer: ArrayBuffer, fileName: string, fileSize: number, fileType: string) {
+    if (fileType === 'image/heic' || fileType === 'image/heif' || fileName.toLowerCase().endsWith('.heic') || fileName.toLowerCase().endsWith('.heif')) {
+      self.postMessage({ type: 'ERROR', message: 'HEIC format is blocked at the Edge worker boundary. Client should have transcoded to JPEG.' });
+      return;
+    }
+
     try {
       self.postMessage({ type: 'PROGRESS', status: 'Packaging file security...' });
       
@@ -285,7 +309,7 @@ export class SecurityEngine {
       const encryptedFileBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: fileIv }, fileKey, fileBuffer);
 
       // 4. Encrypt Metadata (JSON)
-      const metaJson = JSON.stringify({ fileName, fileSize, fileType });
+      const metaJson = JSON.stringify({ fileName, fileSize, fileType, iterations: 600000 });
       const metaBuffer = new TextEncoder().encode(metaJson);
       const metaIv = crypto.getRandomValues(new Uint8Array(12));
       const encryptedMetaBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv: metaIv }, fileKey, metaBuffer);
@@ -365,6 +389,81 @@ export class SecurityEngine {
     }
   }
 
+  private stripPNGMetadata(buffer: ArrayBuffer): ArrayBuffer {
+    const dataView = new DataView(buffer);
+    const uint8Array = new Uint8Array(buffer);
+
+    // PNG Magic Number: 137 80 78 71 13 10 26 10
+    if (
+      uint8Array[0] !== 137 || uint8Array[1] !== 80 ||
+      uint8Array[2] !== 78 || uint8Array[3] !== 71 ||
+      uint8Array[4] !== 13 || uint8Array[5] !== 10 ||
+      uint8Array[6] !== 26 || uint8Array[7] !== 10
+    ) {
+      return buffer; // Not a PNG
+    }
+
+    const chunks: { type: string; data: Uint8Array; crc: Uint8Array; length: number }[] = [];
+    let offset = 8;
+
+    while (offset < uint8Array.length) {
+      if (offset + 8 > uint8Array.length) break;
+      const length = dataView.getUint32(offset);
+      const type = String.fromCharCode(
+        uint8Array[offset + 4],
+        uint8Array[offset + 5],
+        uint8Array[offset + 6],
+        uint8Array[offset + 7]
+      );
+
+      if (offset + 12 + length > uint8Array.length) break;
+      const chunkData = new Uint8Array(buffer, offset + 8, length);
+      const crc = new Uint8Array(buffer, offset + 8 + length, 4);
+
+      chunks.push({
+        type,
+        length,
+        data: chunkData,
+        crc
+      });
+
+      offset += 12 + length;
+    }
+
+    const keepChunks = ['IHDR', 'PLTE', 'IDAT', 'IEND', 'tRNS'];
+    const filteredChunks = chunks.filter(c => keepChunks.includes(c.type));
+
+    let newSize = 8;
+    for (const chunk of filteredChunks) {
+      newSize += 12 + chunk.length;
+    }
+
+    const newBuffer = new ArrayBuffer(newSize);
+    const newUint8Array = new Uint8Array(newBuffer);
+    const newDataView = new DataView(newBuffer);
+
+    // Copy magic number
+    for (let i = 0; i < 8; i++) {
+      newUint8Array[i] = uint8Array[i];
+    }
+
+    let writeOffset = 8;
+    for (const chunk of filteredChunks) {
+      newDataView.setUint32(writeOffset, chunk.length);
+      newUint8Array[writeOffset + 4] = chunk.type.charCodeAt(0);
+      newUint8Array[writeOffset + 5] = chunk.type.charCodeAt(1);
+      newUint8Array[writeOffset + 6] = chunk.type.charCodeAt(2);
+      newUint8Array[writeOffset + 7] = chunk.type.charCodeAt(3);
+
+      newUint8Array.set(chunk.data, writeOffset + 8);
+      newUint8Array.set(chunk.crc, writeOffset + 8 + chunk.length);
+
+      writeOffset += 12 + chunk.length;
+    }
+
+    return newBuffer;
+  }
+
   // --- ZERO-KNOWLEDGE FILE SHARING ACTIONS ---
   async vaultPrepareShare(vaultKeyBase64: string, encryptedFileBuffer: ArrayBuffer, fileIvBase64: string, wrappedKeyBase64: string, encryptedMetaBase64: string, metaIvBase64: string, stripMetadata?: boolean) {
     try {
@@ -389,16 +488,21 @@ export class SecurityEngine {
       if (stripMetadata && metadata.fileType && metadata.fileType.startsWith('image/') && metadata.fileType !== 'image/gif') {
         try {
           self.postMessage({ type: 'PROGRESS', status: '🔬 Bleaching EXIF tracking data...' });
-          const blob = new Blob([decryptedBuffer], { type: metadata.fileType });
-          const imgBitmap = await createImageBitmap(blob);
           
-          // Standard Web Worker OffscreenCanvas API
-          const offscreen = new OffscreenCanvas(imgBitmap.width, imgBitmap.height);
-          const ctx = offscreen.getContext('2d');
-          if (ctx) {
-            ctx.drawImage(imgBitmap, 0, 0);
-            const sanitizedBlob = await offscreen.convertToBlob({ type: metadata.fileType, quality: 0.92 });
-            finalPayload = await sanitizedBlob.arrayBuffer();
+          if (metadata.fileType === 'image/png') {
+            finalPayload = this.stripPNGMetadata(decryptedBuffer);
+          } else {
+            const blob = new Blob([decryptedBuffer], { type: metadata.fileType });
+            const imgBitmap = await createImageBitmap(blob);
+
+            // Standard Web Worker OffscreenCanvas API
+            const offscreen = new OffscreenCanvas(imgBitmap.width, imgBitmap.height);
+            const ctx = offscreen.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(imgBitmap, 0, 0);
+              const sanitizedBlob = await offscreen.convertToBlob({ type: metadata.fileType, quality: 0.92 });
+              finalPayload = await sanitizedBlob.arrayBuffer();
+            }
           }
         } catch (imgErr) {
           console.warn("Image metadata bleaching failure.", imgErr);

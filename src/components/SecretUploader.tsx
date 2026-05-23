@@ -260,10 +260,35 @@ export default function SecretUploader() {
     }
   };
 
-  const handleFileSelection = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const selected = Array.from(e.target.files);
-      setFiles((prev) => [...prev, ...selected]);
+      let selected = Array.from(e.target.files);
+      setStatus('Analyzing file format...');
+
+      const processedFiles: File[] = [];
+      for (let file of selected) {
+        if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+          try {
+            setStatus('Transcoding HEIC to standard JPEG format...');
+            const heic2any = (await import('heic2any')).default;
+            const convertedBlob = await heic2any({
+              blob: file,
+              toType: "image/jpeg",
+              quality: 0.92
+            });
+            const blobArray = Array.isArray(convertedBlob) ? convertedBlob : [convertedBlob];
+            file = new window.File([blobArray[0]], file.name.replace(/\.heic$|\.heif$/i, '.jpg'), { type: 'image/jpeg' });
+          } catch (err) {
+            console.error("HEIC transcoding failed:", err);
+            alert("Failed to transcode HEIC file. Please convert it to JPEG manually.");
+            setStatus('Idle');
+            return;
+          }
+        }
+        processedFiles.push(file);
+      }
+      setStatus('Idle');
+      setFiles((prev) => [...prev, ...processedFiles]);
     }
   };
 

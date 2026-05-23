@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { logger } from "@/lib/logger";
 import { getDb, getRequestContext, getEnv } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
+import { checkRateLimit, incrementRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "edge";
 
@@ -41,6 +42,13 @@ export async function POST(req: Request) {
     if (!isRobotPassed) {
       return NextResponse.json({ error: "Failed anti-spam validation. Operation aborted." }, { status: 403 });
     }
+
+    const ip = req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for") || "127.0.0.1";
+    const allowed = await checkRateLimit(ip, "magic_link", 3, 10); // 3 requests per 10 minutes
+    if (!allowed) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+    }
+    await incrementRateLimit(ip, "magic_link");
 
     const cleanEmail = email.trim().toLowerCase();
     const token = crypto.randomUUID();

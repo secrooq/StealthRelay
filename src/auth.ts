@@ -41,7 +41,7 @@ import GitHubProvider from "next-auth/providers/github";
 import { getDb, getEnv } from "@/lib/db";
 
 // High-entropy encryption fallback helper for PBKDF2/SHA256 password derivation
-async function hashPassword(password: string, salt: string): Promise<string> {
+async function hashPassword(password: string, salt: string, iterations: number = 600000): Promise<string> {
   const enc = new TextEncoder();
   const passwordKey = await crypto.subtle.importKey(
     "raw",
@@ -55,7 +55,7 @@ async function hashPassword(password: string, salt: string): Promise<string> {
     {
       name: "PBKDF2",
       salt: enc.encode(salt),
-      iterations: 100000,
+      iterations: iterations,
       hash: "SHA-256"
     },
     passwordKey,
@@ -276,11 +276,15 @@ const getProviders = () => {
               throw new Error("Clearance denied. Access key not found on active grid.");
             }
 
-            const computedHash = await hashPassword(password, user.salt);
+            let computedHash = await hashPassword(password, user.salt);
             const targetHash = user.password_hash;
             
             if (targetHash && computedHash !== targetHash) {
-              throw new Error("Authentication breach. Master credential mismatch.");
+              // Fallback to legacy 100,000 iterations
+              const legacyHash = await hashPassword(password, user.salt, 100000);
+              if (legacyHash !== targetHash) {
+                throw new Error("Authentication breach. Master credential mismatch.");
+              }
             }
 
             // Native D1 Two-Factor check

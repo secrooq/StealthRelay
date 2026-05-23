@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
-async function hashPassword(password: string, salt: string): Promise<string> {
+async function hashPassword(password: string, salt: string, iterations: number = 600000): Promise<string> {
   const enc = new TextEncoder();
   const passwordKey = await crypto.subtle.importKey(
     "raw",
@@ -18,7 +18,7 @@ async function hashPassword(password: string, salt: string): Promise<string> {
     {
       name: "PBKDF2",
       salt: enc.encode(salt),
-      iterations: 100000,
+      iterations: iterations,
       hash: "SHA-256"
     },
     passwordKey,
