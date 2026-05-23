@@ -84,6 +84,12 @@ export async function POST(
       return NextResponse.json({ error: 'Domain registration not found.' }, { status: 404 });
     }
 
+    // Ensure the domain matches a valid FQDN format to prevent SSRF or weird routing exploits
+    const domainRegex = /^(?:[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
+    if (!domainRegex.test(domain.domain_name)) {
+      return NextResponse.json({ error: 'Invalid domain format.' }, { status: 400 });
+    }
+
     // Query Cloudflare DNS-over-HTTPS
     const cfDnsUrl = `https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(domain.domain_name)}&type=TXT`;
     const cfRes = await fetch(cfDnsUrl, {

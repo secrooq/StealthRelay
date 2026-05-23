@@ -544,7 +544,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
     const subPath = slug.join('/');
 
     if (subPath === 'config') {
-      await requireAdmin(['SUPER_ADMIN', 'ADMIN']);
+      await requireAdmin(['SUPER_ADMIN']);
       const body = await request.json();
       const db = getRequestContext().env.DB;
 
