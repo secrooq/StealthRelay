@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -27,7 +28,7 @@ export async function POST(req: Request) {
       exists: true
     });
   } catch (error: any) {
-    console.error("[PRE_CHECK_ERROR]", error);
+    logger.error("[PRE_CHECK_ERROR]", error);
     return NextResponse.json({ twoFactorEnabled: false, error: "Security check failed." }, { status: 500 });
   }
 }

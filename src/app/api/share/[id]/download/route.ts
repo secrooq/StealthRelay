@@ -1,5 +1,6 @@
 import { getRequestContext } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -62,11 +63,11 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
     ctx.waitUntil(
       obj.body.pipeTo(writable)
         .then(async () => {
-          console.log(`[BURN] Stream consumed completely for share ${id}. Wiping R2 object.`);
+          logger.info(`[BURN] Stream consumed completely for share ${id}. Wiping R2 object.`);
           await storage.delete(`shares/${id}`);
         })
         .catch(async (err: any) => {
-          console.error(`[BURN] Stream severed/aborted for share ${id}:`, err, '. Purging immediately.');
+          logger.error(`[BURN] Stream severed/aborted for share ${id}:`, err, '. Purging immediately.');
           await storage.delete(`shares/${id}`);
         })
     );
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest, context: { params: Promise<{ id
       }
     });
   } catch (error) {
-    console.error('Physical payload delivery fail:', error);
+    logger.error('Physical payload delivery fail:', error);
     return NextResponse.json({ error: 'Intergalactic pipe breakdown' }, { status: 500 });
   }
 }

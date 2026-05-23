@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { getRequestContext } from '@cloudflare/next-on-pages';
 import { getEnv } from './db';
+import { logger } from "@/lib/logger";
 
 export interface AdminSession {
   email: string;
@@ -34,10 +35,10 @@ export async function seedSecurityPersonnel() {
         'SUPER_ADMIN',
         'ACTIVE'
       ).run();
-      console.log('Seeded root admin info@stealthrelay.com');
+      logger.info('Seeded root admin info@stealthrelay.com');
     }
   } catch (e) {
-    console.warn('Database seed check bypassed or failed:', e);
+    logger.warn('Database seed check bypassed or failed:', e);
   }
 }
 
@@ -76,7 +77,7 @@ export async function verifySession(cookieValue: string, secret: string): Promis
       return { email, role, expires };
     }
   } catch (e) {
-    console.error('verifySession error:', e);
+    logger.error('verifySession error:', e);
   }
   return null;
 }
@@ -111,7 +112,7 @@ export async function getAdminSession(): Promise<AdminSession | null> {
       role: personnel.role as any
     };
   } catch (e) {
-    console.error('getAdminSession exception:', e);
+    logger.error('getAdminSession exception:', e);
   }
   return null;
 }

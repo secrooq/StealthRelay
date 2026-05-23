@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -80,7 +81,7 @@ export async function GET(
 
     return NextResponse.json({ error: "POST_NOT_FOUND" }, { status: 404 });
   } catch (error: any) {
-    console.error("[API_BLOG_STABILITY] Critical failure:", error);
+    logger.error("[API_BLOG_STABILITY] Critical failure:", error);
     // Even on error, try to serve from manifest
     if (FALLBACK_MANIFEST[slug]) {
       return NextResponse.json(FALLBACK_MANIFEST[slug]);

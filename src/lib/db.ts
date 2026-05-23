@@ -1,4 +1,5 @@
 import { getOptionalRequestContext } from "@cloudflare/next-on-pages";
+import { logger } from "@/lib/logger";
 
 export function getEnv(key: string): string | undefined {
   try {
@@ -109,7 +110,7 @@ export function getDb() {
         }
       }
     } catch (err) {
-      console.error("[LOCAL_DB_FALLBACK_ERROR]", err);
+      logger.error("[LOCAL_DB_FALLBACK_ERROR]", err);
     }
   }
 
@@ -158,7 +159,7 @@ export function getRequestContext() {
               }
             }
           } catch (err) {
-            console.error("[MOCK_R2_PUT_ERROR]", err);
+            logger.error("[MOCK_R2_PUT_ERROR]", err);
           }
           return {};
         },
@@ -196,7 +197,7 @@ export function getRequestContext() {
               }
             }
           } catch (err) {
-            console.error("[MOCK_R2_GET_ERROR]", err);
+            logger.error("[MOCK_R2_GET_ERROR]", err);
           }
           return null;
         },
@@ -214,7 +215,7 @@ export function getRequestContext() {
               }
             }
           } catch (err) {
-            console.error("[MOCK_R2_DELETE_ERROR]", err);
+            logger.error("[MOCK_R2_DELETE_ERROR]", err);
           }
           return {};
         }
@@ -222,7 +223,7 @@ export function getRequestContext() {
     },
     ctx: {
       waitUntil(promise: Promise<any>) {
-        promise.catch(err => console.error("[MOCK_WAIT_UNTIL_ERROR]", err));
+        promise.catch(err => logger.error("[MOCK_WAIT_UNTIL_ERROR]", err));
       }
     }
   } as any;

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { logger } from "@/lib/logger";
 
 export const runtime = 'edge';
 
@@ -42,7 +43,7 @@ export async function POST(request: NextRequest) {
 
     // Graceful fallback if AI binding is missing (e.g., during local stub-less testing)
     if (!ctx?.env?.AI) {
-      console.warn("[AI CHAT] Binding omitted. Initializing secure local static override.");
+      logger.warn("[AI CHAT] Binding omitted. Initializing secure local static override.");
       return NextResponse.json({ 
         response: "Operational Protocol Override: High-Performance AI processing is currently undergoing edge propagation. For immediate secure storage queries, rest assured all operations remain zero-knowledge. How may I manually direct your transmission?" 
       });
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
           customKnowledge = row.value;
         }
       } catch (dbErr) {
-        console.warn("[AI CHAT] Failed to load custom knowledge from D1:", dbErr);
+        logger.warn("[AI CHAT] Failed to load custom knowledge from D1:", dbErr);
       }
     }
 
@@ -99,13 +100,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (!assistantText) {
-      console.error("[CHAT] Unparseable AI response structure:", JSON.stringify(aiResponse));
+      logger.error("[CHAT] Unparseable AI response structure:", JSON.stringify(aiResponse));
       throw new Error("Nil payload or invalid format returned from AI node.");
     }
 
     return NextResponse.json({ response: assistantText });
   } catch (e: any) {
-    console.error("[CHAT TERMINAL ERROR]", e);
+    logger.error("[CHAT TERMINAL ERROR]", e);
     return NextResponse.json({ 
       response: "Comm-link disrupted. The secure AI terminal was unable to reach consensus. Please re-transmit your message shortly." 
     }, { status: 200 }); // Return friendly message even on failure to keep UI flawless

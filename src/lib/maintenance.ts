@@ -7,13 +7,14 @@
  */
 
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { logger } from "@/lib/logger";
 
 export async function executeMaintenanceWipe() {
   const { env } = getRequestContext();
   const db = env.DB;
   const r2 = env.STEALTH_STORAGE;
 
-  console.log('[WIPE_SERVICE] Initiating scan of latency buffers...');
+  logger.info('[WIPE_SERVICE] Initiating scan of latency buffers...');
 
   // 1. Locate all users who have been INACTIVE/EXPIRED for >14 days
   const expiryThreshold = new Date();
@@ -26,7 +27,7 @@ export async function executeMaintenanceWipe() {
   ).bind(thresholdStr).all();
 
   if (!staleUsers || staleUsers.length === 0) {
-    console.log('[WIPE_SERVICE] No expired arrays pending deletion. System stable.');
+    logger.info('[WIPE_SERVICE] No expired arrays pending deletion. System stable.');
     return { purged: 0 };
   }
 
@@ -34,7 +35,7 @@ export async function executeMaintenanceWipe() {
 
   for (const record of staleUsers) {
     const uid = record.user_id;
-    console.log(`[WIPE_SERVICE] Locking UID: ${uid} for destruction`);
+    logger.info(`[WIPE_SERVICE] Locking UID: ${uid} for destruction`);
 
     // A. Locate files stored in Vault
     const { results: files } = await db.prepare(
@@ -45,7 +46,7 @@ export async function executeMaintenanceWipe() {
       for (const file of files) {
         // Purge physical data from R2 bucket
         await r2.delete(file.storage_key);
-        console.log(`[PURGE] Deleted blob: ${file.storage_key}`);
+        logger.info(`[PURGE] Deleted blob: ${file.storage_key}`);
       }
       
       // Drop relational metadata
@@ -61,6 +62,6 @@ export async function executeMaintenanceWipe() {
     purgeCount++;
   }
 
-  console.log(`[WIPE_SERVICE] Cycle Complete. Total identities scrubbed: ${purgeCount}`);
+  logger.info(`[WIPE_SERVICE] Cycle Complete. Total identities scrubbed: ${purgeCount}`);
   return { purged: purgeCount };
 }

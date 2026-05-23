@@ -1,4 +1,5 @@
 import { getRequestContext } from '@cloudflare/next-on-pages';
+import { logger } from "@/lib/logger";
 
 export type AuditAction = 
   | 'SECRET_CREATED' 
@@ -37,7 +38,7 @@ export async function logAudit({
   try {
     const requestContext = getRequestContext();
     if (!requestContext || !requestContext.env || !requestContext.env.DB) {
-      console.warn(`[AUDIT LOCAL] ${action} - Severity: ${severity} - User: ${userId || 'GUEST'} - Details: ${JSON.stringify(details)}`);
+      logger.warn(`[AUDIT LOCAL] ${action} - Severity: ${severity} - User: ${userId || 'GUEST'} - Details: ${JSON.stringify(details)}`);
       return false;
     }
 
@@ -65,7 +66,7 @@ export async function logAudit({
 
     return true;
   } catch (e) {
-    console.error('[AUDIT ERROR] Failed to commit audit event:', e);
+    logger.error('[AUDIT ERROR] Failed to commit audit event:', e);
     return false;
   }
 }

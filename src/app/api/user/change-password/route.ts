@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { getDb } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -77,7 +78,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: "Security credential key updated successfully." });
   } catch (error: any) {
-    console.error("[CHANGE_PASSWORD_ERROR]", error);
+    logger.error("[CHANGE_PASSWORD_ERROR]", error);
     return NextResponse.json({ error: error.message || "Failed to update security credentials." }, { status: 500 });
   }
 }

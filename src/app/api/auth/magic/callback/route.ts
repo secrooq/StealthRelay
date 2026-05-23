@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { logger } from "@/lib/logger";
 
 export const runtime = "edge";
 
@@ -190,7 +191,7 @@ export async function GET(req: Request) {
               }, 800);
 
             } catch (err) {
-              console.error(err);
+              logger.error(err);
               spinner.style.borderTopColor = '#f43f5e';
               statusSub.innerText = 'LINK PROTOCOL FAILURE';
               statusSub.className = 'status error-text';
@@ -205,7 +206,7 @@ export async function GET(req: Request) {
 
     return new NextResponse(html, { headers: { "Content-Type": "text/html" } });
   } catch (error: any) {
-    console.error("[MAGIC_CALLBACK_ERROR]", error);
+    logger.error("[MAGIC_CALLBACK_ERROR]", error);
     return NextResponse.json({ error: "Magic authentication callback fatal error." }, { status: 500 });
   }
 }

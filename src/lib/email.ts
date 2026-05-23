@@ -4,6 +4,7 @@
  */
 
 import { getEnv } from './db';
+import { logger } from "@/lib/logger";
 
 export interface SendEmailOptions {
   to: string;
@@ -17,7 +18,7 @@ export async function sendEmail({ to, subject, htmlContent, brevoApiKey }: SendE
   
   // 1. Try Mailchannels Delivery Bridge First (Cloudflare Edge Outbound)
   try {
-    console.log(`[EMAIL_ROUTING] Attempting native Mailchannels edge broadcast for: ${to}`);
+    logger.info(`[EMAIL_ROUTING] Attempting native Mailchannels edge broadcast for: ${to}`);
     const response = await fetch('https://api.mailchannels.net/tx/v1/send', {
       method: 'POST',
       headers: {
@@ -44,7 +45,7 @@ export async function sendEmail({ to, subject, htmlContent, brevoApiKey }: SendE
     });
 
     if (response.ok || response.status === 202) {
-      console.log(`[EMAIL_ROUTING] Mailchannels edge broadcast succeeded for: ${to}`);
+      logger.info(`[EMAIL_ROUTING] Mailchannels edge broadcast succeeded for: ${to}`);
       await logAudit({
         userId: to,
         action: 'EMAIL_DISPATCH_SUCCESS',
@@ -55,16 +56,16 @@ export async function sendEmail({ to, subject, htmlContent, brevoApiKey }: SendE
       return true;
     } else {
       const errText = await response.text().catch(() => '');
-      console.warn(`[EMAIL_ROUTING] Mailchannels rejected edge dispatch: ${response.status} - ${errText}. Attempting fallback...`);
+      logger.warn(`[EMAIL_ROUTING] Mailchannels rejected edge dispatch: ${response.status} - ${errText}. Attempting fallback...`);
     }
   } catch (error) {
-    console.warn('[EMAIL_ROUTING] Mailchannels transmission failed. Attempting fallback...', error);
+    logger.warn('[EMAIL_ROUTING] Mailchannels transmission failed. Attempting fallback...', error);
   }
 
   // 2. Fallback to Brevo SMTP REST API
   if (brevoApiKey) {
     try {
-      console.log(`[EMAIL_ROUTING] Initiating Brevo SMTP fallback transmission for: ${to}`);
+      logger.info(`[EMAIL_ROUTING] Initiating Brevo SMTP fallback transmission for: ${to}`);
       const payload = {
         sender: { name: 'StealthRelay', email: 'info@stealthrelay.com' },
         to: [{ email: to }],
@@ -83,7 +84,7 @@ export async function sendEmail({ to, subject, htmlContent, brevoApiKey }: SendE
       });
 
       if (response.ok) {
-        console.log(`[EMAIL_ROUTING] Brevo SMTP fallback transmission succeeded for: ${to}`);
+        logger.info(`[EMAIL_ROUTING] Brevo SMTP fallback transmission succeeded for: ${to}`);
         await logAudit({
           userId: to,
           action: 'EMAIL_DISPATCH_SUCCESS',
@@ -95,12 +96,12 @@ export async function sendEmail({ to, subject, htmlContent, brevoApiKey }: SendE
       }
 
       const errBody = await response.text().catch(() => '');
-      console.error('[EMAIL_ROUTING] Brevo SMTP fallback failed:', errBody);
+      logger.error('[EMAIL_ROUTING] Brevo SMTP fallback failed:', errBody);
     } catch (error) {
-      console.error('[EMAIL_ROUTING] Brevo SMTP fallback exception:', error);
+      logger.error('[EMAIL_ROUTING] Brevo SMTP fallback exception:', error);
     }
   } else {
-    console.warn('[EMAIL_ROUTING] Brevo API Key missing. Fallback path unavailable.');
+    logger.warn('[EMAIL_ROUTING] Brevo API Key missing. Fallback path unavailable.');
   }
 
   await logAudit({
@@ -249,13 +250,13 @@ export async function getBrevoListId(apiKey: string): Promise<number> {
           l.name.toLowerCase().replace(/[\s_-]/g, '') === 'stealthrelaylist'
         );
         if (found) {
-          console.log(`[BREVO] Dynamically resolved "Stealthrelay list" to ID: ${found.id}`);
+          logger.info(`[BREVO] Dynamically resolved "Stealthrelay list" to ID: ${found.id}`);
           return found.id;
         }
       }
     }
   } catch (err) {
-    console.error('[BREVO] Error resolving contacts list ID:', err);
+    logger.error('[BREVO] Error resolving contacts list ID:', err);
   }
   return 2; // Standard fallback list ID
 }
@@ -267,13 +268,13 @@ export async function syncContactToBrevo(email: string, apiKey?: string): Promis
   // Gracefully resolve api key if not passed explicitly
   const brevoApiKey = apiKey || getEnv("BREVO_API_KEY");
   if (!brevoApiKey) {
-    console.warn('[BREVO] API Key missing. Contact sync bypassed.');
+    logger.warn('[BREVO] API Key missing. Contact sync bypassed.');
     return false;
   }
 
   try {
     const listId = await getBrevoListId(brevoApiKey);
-    console.log(`[BREVO] Registering email ${email} into list ${listId}`);
+    logger.info(`[BREVO] Registering email ${email} into list ${listId}`);
     
     const response = await fetch('https://api.brevo.com/v3/contacts', {
       method: 'POST',
@@ -290,13 +291,13 @@ export async function syncContactToBrevo(email: string, apiKey?: string): Promis
     });
 
     if (response.ok) {
-      console.log(`[BREVO] Contact ${email} successfully synchronized to list ID ${listId}`);
+      logger.info(`[BREVO] Contact ${email} successfully synchronized to list ID ${listId}`);
       return true;
     } else {
       const errText = await response.text();
       // If contact already exists but needs list enrollment update
       if (errText.includes("already exist") || response.status === 400) {
-        console.log(`[BREVO] Contact ${email} already exists. Attempting enrollment update...`);
+        logger.info(`[BREVO] Contact ${email} already exists. Attempting enrollment update...`);
         try {
           const updateRes = await fetch(`https://api.brevo.com/v3/contacts/${encodeURIComponent(email)}`, {
             method: 'PUT',
@@ -310,17 +311,17 @@ export async function syncContactToBrevo(email: string, apiKey?: string): Promis
             })
           });
           if (updateRes.ok) {
-            console.log(`[BREVO] Contact ${email} membership successfully updated.`);
+            logger.info(`[BREVO] Contact ${email} membership successfully updated.`);
             return true;
           }
         } catch (updateErr) {
-          console.error('[BREVO] Contact update request failed:', updateErr);
+          logger.error('[BREVO] Contact update request failed:', updateErr);
         }
       }
-      console.warn(`[BREVO] Contacts sync endpoint returned status ${response.status}: ${errText}`);
+      logger.warn(`[BREVO] Contacts sync endpoint returned status ${response.status}: ${errText}`);
     }
   } catch (error) {
-    console.error('[BREVO] Contact registration exception:', error);
+    logger.error('[BREVO] Contact registration exception:', error);
   }
   return false;
 }
