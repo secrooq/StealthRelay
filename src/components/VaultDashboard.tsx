@@ -196,7 +196,7 @@ export default function VaultDashboard() {
 
   // UPLOADING FLOW
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+    let file = e.target.files?.[0];
     if (!file || !vaultKey) return;
 
     if (file.size > 50 * 1024 * 1024) {
@@ -205,6 +205,29 @@ export default function VaultDashboard() {
     }
 
     setIsUploading(true);
+    setUploadProgress("Analyzing file format...");
+
+    // Client-side HEIC transcoding to JPEG
+    if (file.type === 'image/heic' || file.type === 'image/heif' || file.name.toLowerCase().endsWith('.heic') || file.name.toLowerCase().endsWith('.heif')) {
+      try {
+        setUploadProgress("Transcoding HEIC to standard JPEG format...");
+        const heic2any = (await import('heic2any')).default;
+        const convertedBlob = await heic2any({
+          blob: file,
+          toType: "image/jpeg",
+          quality: 0.92
+        });
+
+        const blobArray = Array.isArray(convertedBlob) ? convertedBlob : [convertedBlob];
+        file = new window.File([blobArray[0]], file.name.replace(/\.heic$|\.heif$/i, '.jpg'), { type: 'image/jpeg' });
+      } catch (err) {
+        console.error("HEIC transcoding failed:", err);
+        alert("Failed to transcode HEIC file. Please convert it to JPEG manually.");
+        setIsUploading(false);
+        return;
+      }
+    }
+
     setUploadProgress("Reading file stream...");
 
     try {

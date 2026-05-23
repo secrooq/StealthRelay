@@ -4,6 +4,7 @@ import { requireAdmin, getAdminSession, seedSecurityPersonnel, signSession } fro
 import { cookies } from 'next/headers';
 import { logAudit } from '@/lib/audit';
 import { logger } from "@/lib/logger";
+import { checkRateLimit, incrementRateLimit } from '@/lib/rateLimit';
 
 export const runtime = 'edge';
 
@@ -651,9 +652,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
 
     if (subPath === 'login') {
       const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '127.0.0.1';
+
+      const allowed = await checkRateLimit(ip, 'admin_login', 5, 15); // 5 attempts per 15 minutes
+      if (!allowed) {
+        return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+      }
+
       const { email, secret, turnstileToken } = await request.json();
 
       if (!email || !secret || !turnstileToken) {
+        await incrementRateLimit(ip, 'admin_login');
         return NextResponse.json({ error: 'Email, Secret, and Turnstile token required.' }, { status: 400 });
       }
 
@@ -667,6 +675,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
 
       const isRobotPassed = await verifyTurnstile(turnstileToken, turnstileSecret);
       if (!isRobotPassed) {
+        await incrementRateLimit(ip, 'admin_login');
         return NextResponse.json({ error: 'Failed anti-spam validation. Operation aborted.' }, { status: 403 });
       }
 
@@ -679,10 +688,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       `).bind(email.trim().toLowerCase()).first();
 
       if (!personnel) {
+        await incrementRateLimit(ip, 'admin_login');
         return NextResponse.json({ error: 'Access Denied: Operative not registered.' }, { status: 403 });
       }
 
       if (personnel.status !== 'ACTIVE') {
+        await incrementRateLimit(ip, 'admin_login');
         return NextResponse.json({ error: 'Access Denied: Security Clearance Revoked.' }, { status: 403 });
       }
 
@@ -713,6 +724,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
           details: { email, note: 'Invalid credential supplied to security bypass gate.' }
         });
 
+        await incrementRateLimit(ip, 'admin_login');
         return NextResponse.json({ error: 'Access Denied: Invalid cryptographic clearance.' }, { status: 403 });
       }
 
@@ -735,9 +747,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
 
     if (subPath === 'resend-otp') {
       const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '127.0.0.1';
+
+      const allowed = await checkRateLimit(ip, 'admin_resend_otp', 5, 15); // 5 attempts per 15 minutes
+      if (!allowed) {
+        return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+      }
+
       const { email, secret } = await request.json();
 
       if (!email || !secret) {
+        await incrementRateLimit(ip, 'admin_resend_otp');
         return NextResponse.json({ error: 'Email and Secret required.' }, { status: 400 });
       }
 
@@ -749,10 +768,12 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       `).bind(email.trim().toLowerCase()).first();
 
       if (!personnel) {
+        await incrementRateLimit(ip, 'admin_resend_otp');
         return NextResponse.json({ error: 'Access Denied: Operative not registered.' }, { status: 403 });
       }
 
       if (personnel.status !== 'ACTIVE') {
+        await incrementRateLimit(ip, 'admin_resend_otp');
         return NextResponse.json({ error: 'Access Denied: Security Clearance Revoked.' }, { status: 403 });
       }
 
@@ -772,6 +793,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       const cleanProvided = secret.trim();
 
       if (cleanProvided !== cleanExpected) {
+        await incrementRateLimit(ip, 'admin_resend_otp');
         return NextResponse.json({ error: 'Access Denied: Invalid cryptographic clearance.' }, { status: 403 });
       }
 
@@ -794,9 +816,16 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
 
     if (subPath === 'verify-otp') {
       const ip = request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '127.0.0.1';
+
+      const allowed = await checkRateLimit(ip, 'admin_verify_otp', 5, 15); // 5 attempts per 15 minutes
+      if (!allowed) {
+        return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+      }
+
       const { email, secret, otp } = await request.json();
 
       if (!email || !secret || !otp) {
+        await incrementRateLimit(ip, 'admin_verify_otp');
         return NextResponse.json({ error: 'Missing parameters.' }, { status: 400 });
       }
 
@@ -810,6 +839,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       if (!expectedSecret) expectedSecret = crypto.randomUUID();
 
       if (secret.trim() !== expectedSecret.trim().replace(/^["']|["']$/g, '')) {
+        await incrementRateLimit(ip, 'admin_verify_otp');
         return NextResponse.json({ error: 'Access Denied' }, { status: 403 });
       }
 
@@ -821,6 +851,7 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       `).bind(email.trim().toLowerCase()).first();
 
       if (!personnel || personnel.status !== 'ACTIVE') {
+        await incrementRateLimit(ip, 'admin_verify_otp');
         return NextResponse.json({ error: 'Access Denied: Operative authorization revoked.' }, { status: 403 });
       }
 
@@ -836,12 +867,14 @@ export async function POST(request: Request, context: { params: Promise<{ slug?:
       const storedExpires = dbResult[1]?.results?.[0]?.value;
 
       if (!storedOtp || !storedExpires || Date.now() > parseInt(storedExpires as string)) {
+        await incrementRateLimit(ip, 'admin_verify_otp');
         return NextResponse.json({ error: 'OTP expired or invalid. Please request a new one.' }, { status: 400 });
       }
 
       if (storedOtp !== otp.trim()) {
         const { sendSecurityAlert } = await import('@/lib/monitoring');
         await sendSecurityAlert('Failed Admin OTP Attempt', `An invalid OTP was entered for ${email} from IP: ${ip}`);
+        await incrementRateLimit(ip, 'admin_verify_otp');
         return NextResponse.json({ error: 'Invalid OTP code.' }, { status: 400 });
       }
 

@@ -6,7 +6,7 @@ import { logger } from "@/lib/logger";
 export const runtime = "edge";
 
 // High-entropy PBKDF2 hashing helper
-async function hashPassword(password: string, salt: string): Promise<string> {
+async function hashPassword(password: string, salt: string, iterations: number = 600000): Promise<string> {
   const enc = new TextEncoder();
   const passwordKey = await crypto.subtle.importKey(
     "raw",
@@ -20,7 +20,7 @@ async function hashPassword(password: string, salt: string): Promise<string> {
     {
       name: "PBKDF2",
       salt: enc.encode(salt),
-      iterations: 100000,
+      iterations: iterations,
       hash: "SHA-256"
     },
     passwordKey,
@@ -63,9 +63,12 @@ export async function POST(req: Request) {
     }
 
     // Verify current password hash
-    const currentComputedHash = await hashPassword(currentPassword, user.salt);
+    let currentComputedHash = await hashPassword(currentPassword, user.salt);
     if (currentComputedHash !== user.password_hash) {
-      return NextResponse.json({ error: "Invalid current credential key." }, { status: 400 });
+      const legacyHash = await hashPassword(currentPassword, user.salt, 100000);
+      if (legacyHash !== user.password_hash) {
+        return NextResponse.json({ error: "Invalid current credential key." }, { status: 400 });
+      }
     }
 
     // Calculate new password hash
