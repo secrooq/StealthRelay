@@ -4,7 +4,7 @@
 const rawSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 export const TURNSTILE_SITE_KEY = 
   (!rawSiteKey || rawSiteKey.startsWith("1x")) 
-    ? "0x4AAAAAAADOfEkQcnejCX1Cd" 
+    ? "0x4AAAAAADOfEkQcnejCX1Cd" 
     : rawSiteKey;
 
 export const STRIPE_PUBLISHABLE_KEY = 
