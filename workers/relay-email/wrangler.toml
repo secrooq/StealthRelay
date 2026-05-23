@@ -1,0 +1,11 @@
+name = "stealthrelay-email-worker"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "stealthrelay-db"
+database_id = "875efe49-5655-4340-9dac-ffab434a7a82"
+
+[[send_email]]
+name = "EMAIL"

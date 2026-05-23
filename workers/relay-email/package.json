@@ -1,0 +1,13 @@
+{
+  "name": "stealthrelay-email-worker",
+  "version": "1.0.0",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240222.0",
+    "typescript": "^5.3.3",
+    "wrangler": "^3.28.1"
+  },
+  "dependencies": {
+    "openpgp": "^5.11.0",
+    "postal-mime": "^2.1.0"
+  }
+}
