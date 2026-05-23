@@ -7,7 +7,7 @@
     "build": "next build",
     "pages:build": "npx @cloudflare/next-on-pages && node scripts/patch-worker.js",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint", "test": "vitest run"
   },
   "dependencies": {
     "@scure/base": "^2.2.0",
@@ -37,10 +37,12 @@
     "@types/react-dom": "^19",
     "@types/stripe": "^8.0.416",
     "@types/uuid": "^10.0.0",
+    "@vitest/ui": "^4.1.7",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4",
     "typescript": "^5",
+    "vitest": "^4.1.7",
     "wrangler": "^4.93.0"
   }
 }

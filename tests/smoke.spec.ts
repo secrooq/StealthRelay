@@ -12,7 +12,7 @@ test.describe('Production Smoke Test', () => {
     await expect(logo).toBeVisible();
 
     // Check for "Sign In" button
-    const signInButton = page.locator('a:has-text("Sign In"), button:has-text("Sign In")');
+    const signInButton = page.locator('a:has-text("Sign In"):visible, button:has-text("Sign In"):visible').first();
     await expect(signInButton).toBeVisible();
   });
 
@@ -44,7 +44,7 @@ test.describe('Production Smoke Test', () => {
     await page.goto('/');
 
     // Click sign in
-    await page.click('a:has-text("Sign In")');
+    await page.click('a:has-text("Sign In"):visible');
 
     // Verify it redirects/navigates to /login
     await page.waitForURL(/login/);
