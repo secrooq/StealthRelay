@@ -46,30 +46,59 @@ export default function PhotoIntelPage() {
   const [terminalLogs, setTerminalLogs] = useState<string[]>([]);
   const router = useRouter();
 
-  // Load and sync local storage usage limits
+  // Load and sync database edge usage limits with local fallback
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    const stored = localStorage.getItem("stealth_photo_intel_limits");
-    if (stored) {
+    
+    async function syncLimits() {
       try {
-        const parsed = JSON.parse(stored);
-        if (parsed.date === today) {
-          setBleachCount(parsed.count || 0);
-        } else {
-          // Reset for new day
-          localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: 0 }));
-          setBleachCount(0);
+        const res = await fetch("/api/bleach/limit");
+        const data = await res.json();
+        if (data.success && typeof data.count === "number") {
+          setBleachCount(data.count);
+          localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: data.count }));
+          return;
         }
-      } catch (e) {
+      } catch (err) {
+        // Fall back to localStorage on network or database issues
+      }
+
+      // Local storage fallback
+      const stored = localStorage.getItem("stealth_photo_intel_limits");
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (parsed.date === today) {
+            setBleachCount(parsed.count || 0);
+          } else {
+            localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: 0 }));
+            setBleachCount(0);
+          }
+        } catch (e) {
+          localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: 0 }));
+        }
+      } else {
         localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: 0 }));
       }
-    } else {
-      localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: 0 }));
     }
+
+    syncLimits();
   }, []);
 
-  const incrementBleachCount = () => {
+  const incrementBleachCount = async () => {
     const today = new Date().toISOString().split('T')[0];
+    try {
+      const res = await fetch("/api/bleach/limit", { method: "POST" });
+      const data = await res.json();
+      if (data.success && typeof data.count === "number") {
+        setBleachCount(data.count);
+        localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: data.count }));
+        return data.count;
+      }
+    } catch (err) {
+      // Fallback increment local
+    }
+
     const newCount = bleachCount + 1;
     setBleachCount(newCount);
     localStorage.setItem("stealth_photo_intel_limits", JSON.stringify({ date: today, count: newCount }));
@@ -78,6 +107,15 @@ export default function PhotoIntelPage() {
 
   const addLog = (msg: string) => {
     setTerminalLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
+  };
+
+  const handleReset = () => {
+    setFile(null);
+    setImagePreview(null);
+    setResults(null);
+    setSanitizedImage(null);
+    setTerminalLogs([]);
+    setScanProgress(0);
   };
 
   // Drag and drop event handlers
@@ -135,8 +173,8 @@ export default function PhotoIntelPage() {
         
         // JPEG Magic Number check: 0xFFD8
         if (view.getUint16(0, false) !== 0xFFD8) {
-          addLog("File identified as non-JPEG format. Executing default structural telemetry scans...");
-          resolve(mockTelemetry(file));
+          addLog("File identified as non-JPEG format. Scanning file structure... zero embedded EXIF tags found.");
+          resolve({ hasGps: false, score: 0 });
           return;
         }
 
@@ -165,48 +203,104 @@ export default function PhotoIntelPage() {
               if (isIntel || byteOrder === 0x4D4D) {
                 addLog(`Byte arrangement alignment: ${isIntel ? "Little-Endian" : "Big-Endian"}`);
                 
-                // Jump to First IFD
-                const firstIfdOffset = view.getUint32(exifOffset + 4, isIntel);
-                let dirOffset = exifOffset + firstIfdOffset;
-                
-                // Read number of entries
-                const numEntries = view.getUint16(dirOffset, isIntel);
-                addLog(`Identified ${numEntries} EXIF hardware directories.`);
-                
-                for (let i = 0; i < numEntries; i++) {
-                  const entryOffset = dirOffset + 2 + i * 12;
-                  const tag = view.getUint16(entryOffset, isIntel);
-                  
-                  // Camera Make & Model extraction
-                  if (tag === 0x010F) { // Make
-                    tags.make = "Apple Inc.";
-                  } else if (tag === 0x0110) { // Model
-                    tags.model = "iPhone 15 Pro Max";
-                  } else if (tag === 0x0132) { // DateTime
-                    tags.dateTime = new Date().toISOString().replace('T', ' ').substring(0, 19);
-                  } else if (tag === 0x8825) { // GPS Info IFD Pointer
-                    const gpsPointer = view.getUint32(entryOffset + 8, isIntel);
-                    const gpsOffset = exifOffset + gpsPointer;
+                const getStringVal = (entryOffset: number): string => {
+                  const type = view.getUint16(entryOffset + 2, isIntel);
+                  const count = view.getUint32(entryOffset + 4, isIntel);
+                  if (type !== 2) return "";
+                  const valOffset = view.getUint32(entryOffset + 8, isIntel);
+                  const valActualOffset = count > 4 ? exifOffset + valOffset : entryOffset + 8;
+                  if (valActualOffset + count > view.byteLength) return "";
+                  let str = "";
+                  for (let i = 0; i < count; i++) {
+                    const charCode = view.getUint8(valActualOffset + i);
+                    if (charCode === 0) break;
+                    str += String.fromCharCode(charCode);
+                  }
+                  return str.trim();
+                };
+
+                const getRationalVal = (entryOffset: number): number => {
+                  const valOffset = view.getUint32(entryOffset + 8, isIntel);
+                  const valActualOffset = exifOffset + valOffset;
+                  if (valActualOffset + 8 > view.byteLength) return 0;
+                  const num = view.getUint32(valActualOffset, isIntel);
+                  const den = view.getUint32(valActualOffset + 4, isIntel);
+                  return den === 0 ? 0 : num / den;
+                };
+
+                const getGPSCoordinates = (entryOffset: number): [number, number, number] | null => {
+                  const valOffset = view.getUint32(entryOffset + 8, isIntel);
+                  const valActualOffset = exifOffset + valOffset;
+                  if (valActualOffset + 24 > view.byteLength) return null;
+                  const degNum = view.getUint32(valActualOffset, isIntel);
+                  const degDen = view.getUint32(valActualOffset + 4, isIntel);
+                  const minNum = view.getUint32(valActualOffset + 8, isIntel);
+                  const minDen = view.getUint32(valActualOffset + 12, isIntel);
+                  const secNum = view.getUint32(valActualOffset + 16, isIntel);
+                  const secDen = view.getUint32(valActualOffset + 20, isIntel);
+                  const d = degDen === 0 ? 0 : degNum / degDen;
+                  const m = minDen === 0 ? 0 : minNum / minDen;
+                  const s = secDen === 0 ? 0 : secNum / secDen;
+                  return [d, m, s];
+                };
+
+                const parseDirectory = (dirOffset: number) => {
+                  if (dirOffset >= view.byteLength) return;
+                  const numEntries = view.getUint16(dirOffset, isIntel);
+                  for (let i = 0; i < numEntries; i++) {
+                    const entryOffset = dirOffset + 2 + i * 12;
+                    if (entryOffset + 12 > view.byteLength) break;
                     
-                    const numGpsEntries = view.getUint16(gpsOffset, isIntel);
-                    addLog(`Extracting active geofence metrics. ${numGpsEntries} GPS coordinates detected.`);
+                    const tag = view.getUint16(entryOffset, isIntel);
                     
-                    for (let j = 0; j < numGpsEntries; j++) {
-                      const gpsEntry = gpsOffset + 2 + j * 12;
-                      const gpsTag = view.getUint16(gpsEntry, isIntel);
-                      
-                      if (gpsTag === 2) { // GPSLatitude
-                        gpsData.lat = [37, 46, 30]; // Mocking accurate parsing mapping to live coordinates
-                      } else if (gpsTag === 4) { // GPSLongitude
-                        gpsData.lng = [122, 25, 15];
-                      } else if (gpsTag === 1) { // GPSLatitudeRef
-                        gpsData.latRef = "N";
-                      } else if (gpsTag === 3) { // GPSLongitudeRef
-                        gpsData.lngRef = "W";
-                      }
+                    if (tag === 0x010F) { // Make
+                      tags.make = getStringVal(entryOffset);
+                    } else if (tag === 0x0110) { // Model
+                      tags.model = getStringVal(entryOffset);
+                    } else if (tag === 0x0132) { // DateTime
+                      tags.dateTime = getStringVal(entryOffset);
+                    } else if (tag === 0x010e) { // ImageDescription
+                      tags.description = getStringVal(entryOffset);
+                    } else if (tag === 0x8769) { // Exif IFD Pointer
+                      const subOffset = view.getUint32(entryOffset + 8, isIntel);
+                      parseDirectory(exifOffset + subOffset);
+                    } else if (tag === 0x8825) { // GPS Info IFD Pointer
+                      const gpsSubOffset = view.getUint32(entryOffset + 8, isIntel);
+                      parseGpsDirectory(exifOffset + gpsSubOffset);
                     }
                   }
-                }
+                };
+
+                const parseGpsDirectory = (gpsDirOffset: number) => {
+                  if (gpsDirOffset >= view.byteLength) return;
+                  const numGpsEntries = view.getUint16(gpsDirOffset, isIntel);
+                  for (let j = 0; j < numGpsEntries; j++) {
+                    const gpsEntry = gpsDirOffset + 2 + j * 12;
+                    if (gpsEntry + 12 > view.byteLength) break;
+                    
+                    const gpsTag = view.getUint16(gpsEntry, isIntel);
+                    
+                    if (gpsTag === 1) { // GPSLatitudeRef
+                      const val = getStringVal(gpsEntry);
+                      gpsData.latRef = val || String.fromCharCode(view.getUint8(gpsEntry + 8));
+                    } else if (gpsTag === 2) { // GPSLatitude
+                      gpsData.lat = getGPSCoordinates(gpsEntry);
+                    } else if (gpsTag === 3) { // GPSLongitudeRef
+                      const val = getStringVal(gpsEntry);
+                      gpsData.lngRef = val || String.fromCharCode(view.getUint8(gpsEntry + 8));
+                    } else if (gpsTag === 4) { // GPSLongitude
+                      gpsData.lng = getGPSCoordinates(gpsEntry);
+                    } else if (gpsTag === 5) { // GPSAltitudeRef
+                      gpsData.altRef = view.getUint8(gpsEntry + 8);
+                    } else if (gpsTag === 6) { // GPSAltitude
+                      gpsData.alt = getRationalVal(gpsEntry);
+                    }
+                  }
+                };
+
+                // Jump to First IFD
+                const firstIfdOffset = view.getUint32(exifOffset + 4, isIntel);
+                parseDirectory(exifOffset + firstIfdOffset);
               }
             }
             break;
@@ -216,55 +310,47 @@ export default function PhotoIntelPage() {
 
         // Return extracted data or realistic parsed metrics
         if (gpsData.lat && gpsData.lng) {
+          let lat = gpsData.lat[0] + gpsData.lat[1] / 60 + gpsData.lat[2] / 3600;
+          let lng = gpsData.lng[0] + gpsData.lng[1] / 60 + gpsData.lng[2] / 3600;
+          
+          if (gpsData.latRef === "S" || gpsData.latRef === "s") lat = -lat;
+          if (gpsData.lngRef === "W" || gpsData.lngRef === "w") lng = -lng;
+          
+          let alt = gpsData.alt || 0;
+          if (gpsData.altRef === 1) alt = -alt;
+
+          addLog("REAL GPS METRICS DETECTED.");
           resolve({
-            make: tags.make || "Apple Inc.",
-            model: tags.model || "iPhone 15 Pro Max",
-            dateTime: tags.dateTime || new Date().toISOString().substring(0, 10) + " 14:32:05",
-            software: "iOS 17.4",
-            latitude: 37.7749, // San Francisco OSINT hotspot
-            longitude: -122.4194,
-            altitude: 18,
+            make: tags.make || "GENERIC DEVICE",
+            model: tags.model || "GENERIC CAMERA",
+            dateTime: tags.dateTime || new Date().toISOString().substring(0, 19).replace('T', ' '),
+            software: "Embedded EXIF Tags",
+            latitude: lat,
+            longitude: lng,
+            altitude: alt,
             hasGps: true,
             score: 95
           });
+        } else if (tags.make || tags.model || tags.dateTime) {
+          addLog("EXIF STRUCTURAL METADATA DETECTED (NO GPS FOUND).");
+          resolve({
+            make: tags.make || "GENERIC DEVICE",
+            model: tags.model || "GENERIC CAMERA",
+            dateTime: tags.dateTime || "UNKNOWN TIMESTAMP",
+            software: "Embedded EXIF Tags",
+            hasGps: false,
+            score: 45
+          });
         } else {
-          // If JPEG didn't have EXIF markers, construct realistic scenario for demo engagement
-          resolve(mockTelemetry(file));
+          addLog("JPEG scan complete: zero embedded EXIF tags found.");
+          resolve({
+            hasGps: false,
+            score: 0
+          });
         }
       };
       reader.readAsArrayBuffer(file);
     });
-  };
-
-  const mockTelemetry = (file: File): ExifData => {
-    // Return realistic telemetry based on typical smartphone image structure
-    const phoneModels = ["Apple iPhone 15", "Samsung Galaxy S24", "Google Pixel 8", "Apple iPhone 14 Pro"];
-    const softVersions = ["iOS 17.5", "Android 14", "Android 14.1", "iOS 16.6"];
-    const randIndex = Math.floor(Math.random() * phoneModels.length);
-
-    // Make 85% of mock uploads have coordinates to show map value
-    const hasGps = Math.random() > 0.15;
-    
-    // SF / NY hotspots for visual excitement
-    const coordinates = [
-      { lat: 37.7749, lng: -122.4194, alt: 18, desc: "San Francisco, CA" },
-      { lat: 40.7128, lng: -74.0060, alt: 42, desc: "New York, NY" },
-      { lat: 51.5074, lng: -0.1278, alt: 22, desc: "London, UK" },
-      { lat: 35.6762, lng: 139.6503, alt: 35, desc: "Tokyo, Japan" }
-    ];
-    const randCoord = coordinates[Math.floor(Math.random() * coordinates.length)];
-
-    return {
-      make: randIndex < 2 ? "Apple Inc." : (randIndex === 2 ? "Samsung" : "Google"),
-      model: phoneModels[randIndex],
-      software: softVersions[randIndex],
-      dateTime: new Date(Date.now() - Math.random() * 100000000).toISOString().replace('T', ' ').substring(0, 19),
-      latitude: hasGps ? randCoord.lat : undefined,
-      longitude: hasGps ? randCoord.lng : undefined,
-      altitude: hasGps ? randCoord.alt : undefined,
-      hasGps: hasGps,
-      score: hasGps ? 92 : 45
-    };
   };
 
   const processSelectedFile = async (selectedFile: File) => {
@@ -323,11 +409,27 @@ export default function PhotoIntelPage() {
   const handleBleachMetadata = async () => {
     if (!file) return;
 
-    // Check Anonymous limit (3 free bleaches)
+    // Fast client pre-check
     if (bleachCount >= 3) {
       setShowTrialModal(true);
       addLog("ACCESS SHIELD INITIATED: Free anonymous daily limit (3) exceeded.");
       return;
+    }
+
+    addLog("Verifying anonymous daily limit with Cloudflare security edge...");
+
+    // Edge check
+    try {
+      const res = await fetch("/api/bleach/limit");
+      const data = await res.json();
+      if (data.success && !data.allowed) {
+        setBleachCount(data.count || 3);
+        setShowTrialModal(true);
+        addLog("ACCESS SHIELD INITIATED: Free anonymous daily limit (3) exceeded.");
+        return;
+      }
+    } catch (err) {
+      // Fallback to client count if network/DB fails
     }
 
     addLog("Eradicating binary container tags... drawing sterile canvas in local RAM...");
@@ -355,7 +457,7 @@ export default function PhotoIntelPage() {
           const bleachedBase64 = canvas.toDataURL(file.type || "image/jpeg", 0.92);
           setSanitizedImage(bleachedBase64);
           
-          const finalCount = incrementBleachCount();
+          const finalCount = await incrementBleachCount();
           addLog(`SANITIATION SUCCESSFUL: Container headers sanitized. All EXIF / GPS / device markers destroyed.`);
           addLog(`Operational Daily Scrutiny: ${finalCount}/3 Free daily anonymous quota utilized.`);
         };
@@ -630,16 +732,38 @@ export default function PhotoIntelPage() {
                       Bleach Suspect Metadata <RefreshCw className="w-3.5 h-3.5" />
                     </button>
                   ) : (
-                    <div className="pt-2 space-y-3">
-                      <div className="text-xs text-emerald-400 font-bold uppercase flex items-center justify-center gap-1.5">
-                        <ShieldCheck className="w-4 h-4" /> SANITIZATION COMPLETE. ZERO METADATA DETECTED.
+                    <div className="max-w-md mx-auto p-6 rounded-2xl border border-emerald-500/30 bg-emerald-950/10 backdrop-blur-sm shadow-[0_0_30px_rgba(16,185,129,0.05)] text-center space-y-5 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                      <div className="w-12 h-12 rounded-full border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center mx-auto text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                        <ShieldCheck className="w-6 h-6 animate-pulse" />
                       </div>
-                      <button
-                        onClick={downloadSanitizedImage}
-                        className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-bold uppercase tracking-widest transition-all shadow-lg hover:shadow-cyan-500/20"
-                      >
-                        Download Secure Sanitized Photo <Download className="w-3.5 h-3.5" />
-                      </button>
+                      
+                      <div className="space-y-1">
+                        <div className="text-xs text-emerald-400 font-bold uppercase tracking-widest flex items-center justify-center gap-1.5">
+                          SANITIZATION COMPLETE
+                        </div>
+                        <p className="text-[10px] text-slate-400 uppercase tracking-wider font-mono font-bold text-emerald-500/80">
+                          ZERO METADATA DETECTED
+                        </p>
+                      </div>
+
+                      <p className="text-[10px] text-slate-500 leading-relaxed font-mono uppercase">
+                        All device traces, coordinate telemetry, and embedded header metrics have been permanently bleached from this payload.
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row gap-3 justify-center items-center pt-2">
+                        <button
+                          onClick={downloadSanitizedImage}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-black text-xs font-black uppercase tracking-widest transition-all shadow-lg hover:shadow-cyan-500/20 active:scale-[0.98]"
+                        >
+                          Download Sanitized <Download className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={handleReset}
+                          className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border border-white/10 hover:border-white/20 hover:bg-white/5 text-slate-300 text-xs font-black uppercase tracking-widest transition-all active:scale-[0.98]"
+                        >
+                          Scan Another <RefreshCw className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

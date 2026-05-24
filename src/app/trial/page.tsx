@@ -46,11 +46,12 @@ export default function TrialActivationPage() {
             </h3>
             <ul className="space-y-4 mb-8">
               {[
-                "Unlimited Tactical Aliases",
-                "1GB Encrypted Vault Storage",
+                "Unlimited Masked Relay Aliases",
+                "10 Validated Mailbox Vectors",
+                "50 GB Zero-Knowledge Vault Storage",
+                "500 MB Max File Upload Limit",
                 "Instant Metadata Bleaching",
-                "Priority Node Routing",
-                "14 Days Full Clearance"
+                "14 Days Free Operational Clearance"
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3 text-xs text-slate-200 font-mono">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -60,7 +61,7 @@ export default function TrialActivationPage() {
             </ul>
             <div className="mt-auto pt-6 border-t border-white/5">
               <p className="text-[10px] text-slate-500 font-mono uppercase leading-relaxed">
-                $0.00 Due Today. $15.00/mo after 14 days. Cancel instantly in dashboard. Includes 14-day 100% money-back guarantee on any plans.
+                $0.00 Due Today. $19.00/mo after 14 days (or $15.00/mo billed yearly). Cancel instantly in your dashboard. Includes 14-day 100% money-back guarantee on any plans.
               </p>
             </div>
           </div>
