@@ -242,7 +242,7 @@ export default async function RootLayout({
                     ))}
                     <li>
                       <a 
-                        href="https://github.com/stealthrelay/stealthrelay" 
+                        href="https://github.com/secrooq/StealthRelay" 
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="text-[16px] text-slate-400 hover:text-white font-sans transition-colors"
@@ -286,6 +286,11 @@ export default async function RootLayout({
                     <li>
                       <Link href="/blog" className="text-[16px] text-slate-400 hover:text-white font-sans transition-colors">
                         Security Blog
+                      </Link>
+                    </li>
+                    <li>
+                      <Link href="/tools/photo-intel" className="text-[16px] text-slate-400 hover:text-[#d4af37] font-sans transition-colors">
+                        📷 Photo Forensics Tool
                       </Link>
                     </li>
                     <li>

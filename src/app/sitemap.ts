@@ -21,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/legal',
     '/legal/refund',
     '/legal/cookie',
+    '/tools/photo-intel',
   ];
 
   const blogSlugs = [
@@ -32,6 +33,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'anti-phishing-authentication',
     'secure-exif-stripping-ram',
     'hybrid-homomorphic-encryption',
+    'photo-forensics-osint-exif-dangers',
+    'vpn-dns-leak-testing-guide',
+    'zero-trust-architecture-startups',
+    'browser-fingerprinting-how-websites-track-you',
+    'disposable-email-addresses-security-guide',
+    'dark-web-monitoring-credential-exposure',
+    'end-to-end-encrypted-file-sharing-explained',
+    'insider-threat-detection-data-loss-prevention',
   ];
 
   const staticSitemap = routes.map((route) => ({
