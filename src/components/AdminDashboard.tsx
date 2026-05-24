@@ -1647,10 +1647,22 @@ export default function AdminDashboard() {
                               className={`px-3 py-1 text-[9px] font-bold uppercase tracking-wider rounded border transition-all ${
                                 org.status === 'ACTIVE'
                                   ? 'bg-red-950/20 text-red-400 border-red-900/30 hover:bg-red-900 hover:text-white'
-                                  : 'bg-emerald-955/20 text-emerald-400 border-emerald-900/30 hover:bg-emerald-500 hover:text-black'
+                                  : 'bg-emerald-950/20 text-emerald-400 border-emerald-900/30 hover:bg-emerald-500 hover:text-black'
                               }`}
                             >
                               {org.status === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to permanently delete the ${org.name} enclave?`)) {
+                                  setOrganizations(organizations.filter(o => o.id !== org.id));
+                                  setToast(`Permanently purged ${org.name} enclave.`);
+                                  setTimeout(() => setToast(null), 3000);
+                                }
+                              }}
+                              className="px-3 py-1 bg-red-950/40 hover:bg-red-600 border border-red-900/50 hover:border-red-500 text-red-400 hover:text-white text-[9px] font-bold uppercase tracking-wider rounded transition-all"
+                            >
+                              Delete
                             </button>
                           </td>
                         </tr>
