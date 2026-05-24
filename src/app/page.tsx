@@ -152,6 +152,32 @@ export default function Home() {
               </div>
             ))}
           </div>
+
+          {/* HIGH-IMPACT FREE FORENSICS TOOL BANNER */}
+          <div className="mt-16 bg-[#161411] border border-[#d4af37]/25 rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden shadow-[0_0_30px_rgba(212,175,55,0.05)] group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-[#d4af37]/5 rounded-bl-full pointer-events-none" />
+            <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#d4af37]/45" />
+            <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#d4af37]/45" />
+            
+            <div className="space-y-3 max-w-xl text-left">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full border border-[#d4af37]/20 bg-[#d4af37]/5 text-[#e5c158] font-mono text-[9px] uppercase tracking-wider">
+                📷 Free Tactical Scanner
+              </span>
+              <h3 className="text-xl md:text-2xl font-mono font-black uppercase text-white tracking-tight">
+                Photo Intelligence Forensic Scanner
+              </h3>
+              <p className="text-xs md:text-sm text-slate-400 leading-relaxed font-sans">
+                Curious if your shared photos carry active trackers? Instantly scan, plot GPS metrics on our digital georeference map, and bleach camera serials completely client-side.
+              </p>
+            </div>
+            
+            <Link 
+              href="/tools/photo-intel"
+              className="px-6 py-4 bg-white text-black font-mono text-xs font-black uppercase tracking-widest rounded-xl hover:bg-[#d4af37] transition-all duration-300 flex items-center gap-2 shrink-0 group-hover:scale-105"
+            >
+              Analyze Suspect Photo <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
         </div>
       </section>
 

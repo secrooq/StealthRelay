@@ -60,7 +60,7 @@ export default function TrialActivationPage() {
             </ul>
             <div className="mt-auto pt-6 border-t border-white/5">
               <p className="text-[10px] text-slate-500 font-mono uppercase leading-relaxed">
-                $0.00 Due Today. $9.00/mo after 14 days. Cancel instantly in dashboard. Includes 14-day 100% money-back guarantee on any plans.
+                $0.00 Due Today. $15.00/mo after 14 days. Cancel instantly in dashboard. Includes 14-day 100% money-back guarantee on any plans.
               </p>
             </div>
           </div>

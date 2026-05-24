@@ -289,6 +289,11 @@ export default async function RootLayout({
                       </Link>
                     </li>
                     <li>
+                      <Link href="/tools/photo-intel" className="text-[16px] text-slate-400 hover:text-[#d4af37] font-sans transition-colors">
+                        📷 Photo Forensics Tool
+                      </Link>
+                    </li>
+                    <li>
                       <Link href="/legal" className="text-[16px] text-slate-400 hover:text-white font-sans transition-colors">
                         Legal Directives
                       </Link>

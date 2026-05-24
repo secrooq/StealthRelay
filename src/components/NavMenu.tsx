@@ -146,6 +146,10 @@ export default function NavMenu() {
                   <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#e5c158] group-hover/item:translate-x-1 transition-transform">⏳ StealthShare</span>
                   <span className="text-[10px] text-slate-400 font-mono uppercase tracking-wider mt-1">One-Time Ephemeral Secret Transits</span>
                 </Link>
+                <Link href="/tools/photo-intel" className="flex flex-col px-4 py-3 hover:bg-neutral-900/80 rounded-lg transition text-left group/item border border-transparent hover:border-white/5">
+                  <span className="text-xs font-mono font-bold uppercase tracking-widest text-[#e5c158] group-hover/item:translate-x-1 transition-transform">📷 Photo Intel Scanner</span>
+                  <span className="text-[10px] text-[#e5c158]/80 font-mono uppercase tracking-wider mt-1">Local Geolocation Scanning &amp; EXIF Bleacher</span>
+                </Link>
                 <div className="border-t border-neutral-850 my-1" />
                 <Link href="/compare" className="flex flex-col px-4 py-3 hover:bg-[#d4af37]/5 rounded-lg transition text-left group/item border border-transparent hover:border-[#d4af37]/20">
                   <span className="text-xs font-mono font-bold uppercase tracking-widest text-white group-hover/item:translate-x-1 transition-transform">🔄 Suite Compare</span>
@@ -218,6 +222,15 @@ export default function NavMenu() {
                 }`}
               >
                 <span>⏳ StealthShare Link</span>
+              </Link>
+              <Link 
+                href="/tools/photo-intel" 
+                onClick={() => setIsMobileMenuOpen(false)} 
+                className={`px-6 py-4.5 text-xs font-mono font-bold uppercase tracking-widest border-b border-white/5 transition-all hover:bg-white/5 flex items-center gap-2 ${
+                  pathname === '/tools/photo-intel' ? 'text-[#e5c158] bg-white/5' : 'text-slate-350 hover:text-white'
+                }`}
+              >
+                <span>📷 Photo Intel Scanner</span>
               </Link>
 
               <div className="px-6 pt-6 pb-2 text-[9px] font-mono font-black text-[#e5c158] uppercase tracking-[0.25em]">
