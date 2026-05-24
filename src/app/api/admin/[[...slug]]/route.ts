@@ -337,38 +337,98 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
       await requireAdmin(["SUPER_ADMIN", "ADMIN", "DEVELOPER"]);
       const db = getRequestContext().env.DB;
 
-      // A. Real Membership Stats
-      const usersToday = await db.prepare("SELECT COUNT(*) as cnt FROM vault_users WHERE created_at >= datetime('now', '-24 hours')").first() as any;
-      const usersMonth = await db.prepare("SELECT COUNT(*) as cnt FROM vault_users WHERE created_at >= datetime('now', 'start of month')").first() as any;
-      const usersYear = await db.prepare("SELECT COUNT(*) as cnt FROM vault_users WHERE created_at >= datetime('now', 'start of year')").first() as any;
-      const usersTotal = await db.prepare("SELECT COUNT(*) as cnt FROM vault_users").first() as any;
+      // Ensure the source column exists for distinguishing mock vs real subscriptions
+      try {
+        await db.prepare("ALTER TABLE user_subscriptions ADD COLUMN source TEXT DEFAULT 'mock'").run();
+      } catch (e) {
+        // Column already exists — ignore
+      }
 
-      const cancelsToday = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE status = 'CANCELLED' AND updated_at >= datetime('now', '-24 hours')").first() as any;
-      const cancelsMonth = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE status = 'CANCELLED' AND updated_at >= datetime('now', 'start of month')").first() as any;
-      const cancelsYear = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE status = 'CANCELLED' AND updated_at >= datetime('now', 'start of year')").first() as any;
-      const cancelsTotal = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE status = 'CANCELLED'").first() as any;
+      // Group queries into a single batch to reduce network roundtrips
+      const batchResults = await db.batch([
+        // 0: vault_users stats
+        db.prepare(`
+          SELECT
+            SUM(CASE WHEN created_at >= datetime('now', '-24 hours') THEN 1 ELSE 0 END) as usersToday,
+            SUM(CASE WHEN created_at >= datetime('now', 'start of month') THEN 1 ELSE 0 END) as usersMonth,
+            SUM(CASE WHEN created_at >= datetime('now', 'start of year') THEN 1 ELSE 0 END) as usersYear,
+            COUNT(*) as usersTotal
+          FROM vault_users
+        `),
 
-      // Active counts per level
-      const activeFree = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'FREE_TRIAL' AND status = 'ACTIVE'").first() as any;
-      const activeContractor = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'CONTRACTOR' AND status = 'ACTIVE'").first() as any;
-      const activePhantom = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'PHANTOM' AND status = 'ACTIVE'").first() as any;
-      const activeEnterprise = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'ENTERPRISE' AND status = 'ACTIVE'").first() as any;
+        // 1: user_subscriptions stats
+        db.prepare(`
+          SELECT
+            SUM(CASE WHEN status = 'CANCELLED' AND updated_at >= datetime('now', '-24 hours') THEN 1 ELSE 0 END) as cancelsToday,
+            SUM(CASE WHEN status = 'CANCELLED' AND updated_at >= datetime('now', 'start of month') THEN 1 ELSE 0 END) as cancelsMonth,
+            SUM(CASE WHEN status = 'CANCELLED' AND updated_at >= datetime('now', 'start of year') THEN 1 ELSE 0 END) as cancelsYear,
+            SUM(CASE WHEN status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelsTotal,
 
-      const cancelledFree = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'FREE_TRIAL' AND status = 'CANCELLED'").first() as any;
-      const cancelledContractor = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'CONTRACTOR' AND status = 'CANCELLED'").first() as any;
-      const cancelledPhantom = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'PHANTOM' AND status = 'CANCELLED'").first() as any;
-      const cancelledEnterprise = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'ENTERPRISE' AND status = 'CANCELLED'").first() as any;
+            SUM(CASE WHEN plan = 'FREE_TRIAL' AND status = 'ACTIVE' THEN 1 ELSE 0 END) as activeFree,
+            SUM(CASE WHEN plan = 'CONTRACTOR' AND status = 'ACTIVE' THEN 1 ELSE 0 END) as activeContractor,
+            SUM(CASE WHEN plan = 'PHANTOM' AND status = 'ACTIVE' THEN 1 ELSE 0 END) as activePhantom,
+            SUM(CASE WHEN plan = 'ENTERPRISE' AND status = 'ACTIVE' THEN 1 ELSE 0 END) as activeEnterprise,
+
+            SUM(CASE WHEN plan = 'FREE_TRIAL' AND status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelledFree,
+            SUM(CASE WHEN plan = 'CONTRACTOR' AND status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelledContractor,
+            SUM(CASE WHEN plan = 'PHANTOM' AND status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelledPhantom,
+            SUM(CASE WHEN plan = 'ENTERPRISE' AND status = 'CANCELLED' THEN 1 ELSE 0 END) as cancelledEnterprise,
+
+            SUM(CASE WHEN plan = 'CONTRACTOR' AND status = 'ACTIVE' AND source = 'stripe_webhook' THEN 1 ELSE 0 END) as realContractor,
+            SUM(CASE WHEN plan = 'PHANTOM' AND status = 'ACTIVE' AND source = 'stripe_webhook' THEN 1 ELSE 0 END) as realPhantom,
+            SUM(CASE WHEN plan = 'ENTERPRISE' AND status = 'ACTIVE' AND source = 'stripe_webhook' THEN 1 ELSE 0 END) as realEnterprise
+          FROM user_subscriptions
+        `),
+
+        // 2: audit_logs stats
+        db.prepare(`
+          SELECT
+            SUM(CASE WHEN action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', '-24 hours') THEN 1 ELSE 0 END) as realLoginsToday,
+            SUM(CASE WHEN action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) as realLoginsWeek,
+            SUM(CASE WHEN action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', 'start of month') THEN 1 ELSE 0 END) as realLoginsMonth,
+            SUM(CASE WHEN action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', 'start of year') THEN 1 ELSE 0 END) as realLoginsYear,
+            SUM(CASE WHEN action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') THEN 1 ELSE 0 END) as realLoginsTotal,
+
+            SUM(CASE WHEN created_at >= datetime('now', '-24 hours') THEN 1 ELSE 0 END) as realViewsToday,
+            SUM(CASE WHEN created_at >= datetime('now', '-7 days') THEN 1 ELSE 0 END) as realViewsWeek,
+            SUM(CASE WHEN created_at >= datetime('now', 'start of month') THEN 1 ELSE 0 END) as realViewsMonth,
+            SUM(CASE WHEN created_at >= datetime('now', 'start of year') THEN 1 ELSE 0 END) as realViewsYear,
+            COUNT(*) as realViewsTotal,
+
+            COUNT(DISTINCT CASE WHEN created_at >= datetime('now', '-24 hours') THEN ip_address END) as realVisitsToday,
+            COUNT(DISTINCT CASE WHEN created_at >= datetime('now', '-7 days') THEN ip_address END) as realVisitsWeek,
+            COUNT(DISTINCT CASE WHEN created_at >= datetime('now', 'start of month') THEN ip_address END) as realVisitsMonth,
+            COUNT(DISTINCT CASE WHEN created_at >= datetime('now', 'start of year') THEN ip_address END) as realVisitsYear,
+            COUNT(DISTINCT ip_address) as realVisitsTotal,
+
+            SUM(CASE WHEN action = 'EMAIL_DISPATCH_SUCCESS' THEN 1 ELSE 0 END) as totalEmailsSent,
+            SUM(CASE WHEN action = 'EMAIL_DISPATCH_FAILURE' THEN 1 ELSE 0 END) as totalEmailsFailed
+          FROM audit_logs
+        `),
+
+        // 3: audit_logs last sent
+        db.prepare("SELECT created_at FROM audit_logs WHERE action = 'EMAIL_DISPATCH_SUCCESS' ORDER BY created_at DESC LIMIT 1"),
+
+        // 4: audit_logs last failed
+        db.prepare("SELECT created_at FROM audit_logs WHERE action = 'EMAIL_DISPATCH_FAILURE' ORDER BY created_at DESC LIMIT 1")
+      ]);
+
+      const userStats: any = batchResults[0]?.results?.[0] || {};
+      const subStats: any = batchResults[1]?.results?.[0] || {};
+      const auditStats: any = batchResults[2]?.results?.[0] || {};
+      const lastSentAlert: any = batchResults[3]?.results?.[0] || {};
+      const lastFailedAlert: any = batchResults[4]?.results?.[0] || {};
 
       const membershipStats = {
-        today: { signups: Number(usersToday?.cnt || 0), cancellations: Number(cancelsToday?.cnt || 0) },
-        thisMonth: { signups: Number(usersMonth?.cnt || 0), cancellations: Number(cancelsMonth?.cnt || 0) },
-        thisYear: { signups: Number(usersYear?.cnt || 0), cancellations: Number(cancelsYear?.cnt || 0) },
-        allTime: { signups: Number(usersTotal?.cnt || 0), cancellations: Number(cancelsTotal?.cnt || 0) },
+        today: { signups: Number(userStats.usersToday || 0), cancellations: Number(subStats.cancelsToday || 0) },
+        thisMonth: { signups: Number(userStats.usersMonth || 0), cancellations: Number(subStats.cancelsMonth || 0) },
+        thisYear: { signups: Number(userStats.usersYear || 0), cancellations: Number(subStats.cancelsYear || 0) },
+        allTime: { signups: Number(userStats.usersTotal || 0), cancellations: Number(subStats.cancelsTotal || 0) },
         levels: [
-          { name: "Free Trial", signups: Number(activeFree?.cnt || 0), cancellations: Number(cancelledFree?.cnt || 0) },
-          { name: "Contractor Security Tier ($19/mo)", signups: Number(activeContractor?.cnt || 0), cancellations: Number(cancelledContractor?.cnt || 0) },
-          { name: "Phantom Security Tier ($49/mo)", signups: Number(activePhantom?.cnt || 0), cancellations: Number(cancelledPhantom?.cnt || 0) },
-          { name: "Enterprise Governance Tier ($99/mo)", signups: Number(activeEnterprise?.cnt || 0), cancellations: Number(cancelledEnterprise?.cnt || 0) }
+          { name: "Free Trial", signups: Number(subStats.activeFree || 0), cancellations: Number(subStats.cancelledFree || 0) },
+          { name: "Contractor Security Tier ($19/mo)", signups: Number(subStats.activeContractor || 0), cancellations: Number(subStats.cancelledContractor || 0) },
+          { name: "Phantom Security Tier ($49/mo)", signups: Number(subStats.activePhantom || 0), cancellations: Number(subStats.cancelledPhantom || 0) },
+          { name: "Enterprise Governance Tier ($99/mo)", signups: Number(subStats.activeEnterprise || 0), cancellations: Number(subStats.cancelledEnterprise || 0) }
         ]
       };
 
@@ -383,27 +443,14 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
         }
       } catch (e) {}
 
-      // Ensure the source column exists for distinguishing mock vs real subscriptions
-      try {
-        await db.prepare("ALTER TABLE user_subscriptions ADD COLUMN source TEXT DEFAULT 'mock'").run();
-      } catch (e) {
-        // Column already exists — ignore
-      }
-
-      // Only count subscriptions that originated from real Stripe webhooks for revenue
-      // Subscriptions created by the checkout simulator (mock-confirm) have source='mock' or NULL
-      const realContractor = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'CONTRACTOR' AND status = 'ACTIVE' AND source = 'stripe_webhook'").first() as any;
-      const realPhantom = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'PHANTOM' AND status = 'ACTIVE' AND source = 'stripe_webhook'").first() as any;
-      const realEnterprise = await db.prepare("SELECT COUNT(*) as cnt FROM user_subscriptions WHERE plan = 'ENTERPRISE' AND status = 'ACTIVE' AND source = 'stripe_webhook'").first() as any;
-
-      const activeSalesContractor = Number(realContractor?.cnt || 0);
-      const activeSalesPhantom = Number(realPhantom?.cnt || 0);
-      const activeSalesEnterprise = Number(realEnterprise?.cnt || 0);
+      const activeSalesContractor = Number(subStats.realContractor || 0);
+      const activeSalesPhantom = Number(subStats.realPhantom || 0);
+      const activeSalesEnterprise = Number(subStats.realEnterprise || 0);
 
       // Also count mock/test subscriptions separately for transparency
-      const mockContractor = Number(activeContractor?.cnt || 0) - activeSalesContractor;
-      const mockPhantom = Number(activePhantom?.cnt || 0) - activeSalesPhantom;
-      const mockEnterprise = Number(activeEnterprise?.cnt || 0) - activeSalesEnterprise;
+      const mockContractor = Number(subStats.activeContractor || 0) - activeSalesContractor;
+      const mockPhantom = Number(subStats.activePhantom || 0) - activeSalesPhantom;
+      const mockEnterprise = Number(subStats.activeEnterprise || 0) - activeSalesEnterprise;
       const totalMockSubs = mockContractor + mockPhantom + mockEnterprise;
 
       const mrrContractor = activeSalesContractor * 19.00;
@@ -428,71 +475,43 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
         dataSource: stripeMode === 'LIVE' ? 'stripe_live' : 'stripe_test'
       };
 
-      // C. Operational Metrics — Logins from audit_logs (real), Visits/Views from audit_logs (real)
-      const realLoginsToday = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', '-24 hours')").first() as any;
-      const realLoginsWeek = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', '-7 days')").first() as any;
-      const realLoginsMonth = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', 'start of month')").first() as any;
-      const realLoginsYear = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS') AND created_at >= datetime('now', 'start of year')").first() as any;
-      const realLoginsTotal = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action IN ('USER_LOGIN', 'ADMIN_BYPASS_SUCCESS')").first() as any;
-
-      // Count all audit_log actions as "views" (actual server-side activity)
-      const realViewsToday = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE created_at >= datetime('now', '-24 hours')").first() as any;
-      const realViewsWeek = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE created_at >= datetime('now', '-7 days')").first() as any;
-      const realViewsMonth = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE created_at >= datetime('now', 'start of month')").first() as any;
-      const realViewsYear = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE created_at >= datetime('now', 'start of year')").first() as any;
-      const realViewsTotal = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs").first() as any;
-
-      // Unique IPs as "visits" (distinct IP addresses in audit logs)
-      const realVisitsToday = await db.prepare("SELECT COUNT(DISTINCT ip_address) as cnt FROM audit_logs WHERE created_at >= datetime('now', '-24 hours')").first() as any;
-      const realVisitsWeek = await db.prepare("SELECT COUNT(DISTINCT ip_address) as cnt FROM audit_logs WHERE created_at >= datetime('now', '-7 days')").first() as any;
-      const realVisitsMonth = await db.prepare("SELECT COUNT(DISTINCT ip_address) as cnt FROM audit_logs WHERE created_at >= datetime('now', 'start of month')").first() as any;
-      const realVisitsYear = await db.prepare("SELECT COUNT(DISTINCT ip_address) as cnt FROM audit_logs WHERE created_at >= datetime('now', 'start of year')").first() as any;
-      const realVisitsTotal = await db.prepare("SELECT COUNT(DISTINCT ip_address) as cnt FROM audit_logs").first() as any;
-
       const visitsLogins = {
         today: {
-          visits: Number(realVisitsToday?.cnt || 0),
-          views: Number(realViewsToday?.cnt || 0),
-          logins: Number(realLoginsToday?.cnt || 0)
+          visits: Number(auditStats.realVisitsToday || 0),
+          views: Number(auditStats.realViewsToday || 0),
+          logins: Number(auditStats.realLoginsToday || 0)
         },
         thisWeek: {
-          visits: Number(realVisitsWeek?.cnt || 0),
-          views: Number(realViewsWeek?.cnt || 0),
-          logins: Number(realLoginsWeek?.cnt || 0)
+          visits: Number(auditStats.realVisitsWeek || 0),
+          views: Number(auditStats.realViewsWeek || 0),
+          logins: Number(auditStats.realLoginsWeek || 0)
         },
         thisMonth: {
-          visits: Number(realVisitsMonth?.cnt || 0),
-          views: Number(realViewsMonth?.cnt || 0),
-          logins: Number(realLoginsMonth?.cnt || 0)
+          visits: Number(auditStats.realVisitsMonth || 0),
+          views: Number(auditStats.realViewsMonth || 0),
+          logins: Number(auditStats.realLoginsMonth || 0)
         },
         yearToDate: {
-          visits: Number(realVisitsYear?.cnt || 0),
-          views: Number(realViewsYear?.cnt || 0),
-          logins: Number(realLoginsYear?.cnt || 0)
+          visits: Number(auditStats.realVisitsYear || 0),
+          views: Number(auditStats.realViewsYear || 0),
+          logins: Number(auditStats.realLoginsYear || 0)
         },
         allTime: {
-          visits: Number(realVisitsTotal?.cnt || 0),
-          views: Number(realViewsTotal?.cnt || 0),
-          logins: Number(realLoginsTotal?.cnt || 0)
+          visits: Number(auditStats.realVisitsTotal || 0),
+          views: Number(auditStats.realViewsTotal || 0),
+          logins: Number(auditStats.realLoginsTotal || 0)
         },
         // All data is sourced from real audit_logs table
         dataSource: 'real_db'
       };
 
-      // D. Email Queues & Logs — real audit_log counts
-      const totalEmailsSent = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action = 'EMAIL_DISPATCH_SUCCESS'").first() as any;
-      const totalEmailsFailed = await db.prepare("SELECT COUNT(*) as cnt FROM audit_logs WHERE action = 'EMAIL_DISPATCH_FAILURE'").first() as any;
-
-      const lastSentAlert = await db.prepare("SELECT created_at FROM audit_logs WHERE action = 'EMAIL_DISPATCH_SUCCESS' ORDER BY created_at DESC LIMIT 1").first() as any;
-      const lastFailedAlert = await db.prepare("SELECT created_at FROM audit_logs WHERE action = 'EMAIL_DISPATCH_FAILURE' ORDER BY created_at DESC LIMIT 1").first() as any;
-
       const emailLog = {
         sentSuccess: { 
-          total: Number(totalEmailsSent?.cnt || 0), 
+          total: Number(auditStats.totalEmailsSent || 0),
           lastActivity: lastSentAlert?.created_at || new Date().toISOString() 
         },
         sentFailed: { 
-          total: Number(totalEmailsFailed?.cnt || 0), 
+          total: Number(auditStats.totalEmailsFailed || 0),
           lastActivity: lastFailedAlert?.created_at || new Date(Date.now() - 86400000).toISOString() 
         },
         dataSource: 'real_db'
