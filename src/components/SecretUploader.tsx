@@ -370,7 +370,7 @@ export default function SecretUploader() {
                         <span className="text-xs text-slate-300 truncate font-bold uppercase tracking-wide">{f.name}</span>
                         <span className="text-[10px] text-slate-550 ml-2 flex-shrink-0">({(f.size / 1024 / 1024).toFixed(2)} MB)</span>
                       </div>
-                      <button type="button" onClick={() => removeFile(idx)} className="text-slate-500 hover:text-red-400 p-1 transition-colors">
+                      <button type="button" onClick={() => removeFile(idx)} className="text-slate-500 hover:text-red-400 p-1 transition-colors" aria-label="Remove file">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -389,7 +389,7 @@ export default function SecretUploader() {
                     <ShieldAlert className="w-4 h-4 mr-2 text-purple-400" />
                     AI Anti-Toxicity
                   </label>
-                  <button type="button" onClick={() => setUseAiScan(!useAiScan)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useAiScan ? 'bg-purple-500' : 'bg-gray-600'}`}>
+                  <button type="button" role="switch" aria-checked={useAiScan} onClick={() => setUseAiScan(!useAiScan)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useAiScan ? 'bg-purple-500' : 'bg-gray-600'}`}>
                     <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useAiScan ? 'translate-x-5' : 'translate-x-1'}`} />
                   </button>
                 </div>
@@ -402,7 +402,7 @@ export default function SecretUploader() {
                     <Trash2 className="w-4 h-4 mr-2 text-red-400" />
                     Bleach Metadata
                   </label>
-                  <button type="button" onClick={() => setStripMetadata(!stripMetadata)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${stripMetadata ? 'bg-red-500' : 'bg-gray-600'}`}>
+                  <button type="button" role="switch" aria-checked={stripMetadata} onClick={() => setStripMetadata(!stripMetadata)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${stripMetadata ? 'bg-red-500' : 'bg-gray-600'}`}>
                     <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${stripMetadata ? 'translate-x-5' : 'translate-x-1'}`} />
                   </button>
                 </div>
@@ -416,7 +416,7 @@ export default function SecretUploader() {
                   <KeyRound className="w-4 h-4 mr-2 text-blue-400" />
                   Custom Lock
                 </label>
-                <button type="button" onClick={() => setUsePassword(!usePassword)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${usePassword ? 'bg-blue-500' : 'bg-gray-600'}`}>
+                <button type="button" role="switch" aria-checked={usePassword} onClick={() => setUsePassword(!usePassword)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${usePassword ? 'bg-blue-500' : 'bg-gray-600'}`}>
                   <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${usePassword ? 'translate-x-5' : 'translate-x-1'}`} />
                 </button>
               </div>
@@ -429,7 +429,7 @@ export default function SecretUploader() {
                   <Globe className="w-4 h-4 mr-2 text-orange-400" />
                   Geofencing / IP
                 </label>
-                <button type="button" onClick={() => setUseLockdown(!useLockdown)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useLockdown ? 'bg-orange-500' : 'bg-gray-600'}`}>
+                <button type="button" role="switch" aria-checked={useLockdown} onClick={() => setUseLockdown(!useLockdown)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useLockdown ? 'bg-orange-500' : 'bg-gray-600'}`}>
                   <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${useLockdown ? 'translate-x-5' : 'translate-x-1'}`} />
                 </button>
               </div>
@@ -443,7 +443,7 @@ export default function SecretUploader() {
                     <Lock className="w-4 h-4 mr-2 text-green-400" />
                     Anonymize Names
                   </label>
-                  <button type="button" onClick={() => setAnonymizeFilenames(!anonymizeFilenames)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${anonymizeFilenames ? 'bg-green-500' : 'bg-gray-600'}`}>
+                  <button type="button" role="switch" aria-checked={anonymizeFilenames} onClick={() => setAnonymizeFilenames(!anonymizeFilenames)} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${anonymizeFilenames ? 'bg-green-500' : 'bg-gray-600'}`}>
                     <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${anonymizeFilenames ? 'translate-x-5' : 'translate-x-1'}`} />
                   </button>
                 </div>
@@ -514,7 +514,7 @@ export default function SecretUploader() {
               <div className="flex-grow">
                 <p className="text-red-300 text-xs font-bold uppercase tracking-wider">🚨 {error}</p>
               </div>
-              <button type="button" onClick={() => setError(null)} className="text-red-400 ml-2">
+              <button type="button" onClick={() => setError(null)} className="text-red-400 ml-2" aria-label="Dismiss error">
                 <XCircle className="w-5 h-5" />
               </button>
             </div>
@@ -571,7 +571,7 @@ export default function SecretUploader() {
 
           <div className="p-4 bg-black/60 border border-white/10 rounded-xl flex items-center shadow-inner">
             <input readOnly value={finalUrl} className="bg-transparent w-full text-[#e5c158] text-xs outline-none font-mono select-all" />
-            <button onClick={copyToClipboard} className="ml-3 p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white flex-shrink-0">
+            <button onClick={copyToClipboard} className="ml-3 p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400 hover:text-white flex-shrink-0" aria-label="Copy to clipboard">
               <Copy className="w-5 h-5" />
             </button>
           </div>
