@@ -34,7 +34,7 @@ export default function TrialActivationPage() {
           </div>
           <h1 className="text-4xl md:text-5xl font-black uppercase text-white mb-4 tracking-tight">Activate Your Stealth Trial</h1>
           <p className="text-slate-400 font-mono text-sm max-w-lg mx-auto">
-            To prevent bot exhaustion and ensure resource integrity, we require a valid credit card to initialize your 7-day Zero-Knowledge trial.
+            To prevent bot exhaustion and ensure resource integrity, we require a valid credit card to initialize your 14-day Zero-Knowledge trial (backed by our 14-day money-back guarantee).
           </p>
         </div>
 
@@ -50,7 +50,7 @@ export default function TrialActivationPage() {
                 "1GB Encrypted Vault Storage",
                 "Instant Metadata Bleaching",
                 "Priority Node Routing",
-                "7 Days Full Clearance"
+                "14 Days Full Clearance"
               ].map((item, i) => (
                 <li key={i} className="flex items-start gap-3 text-xs text-slate-200 font-mono">
                   <Check className="w-4 h-4 text-emerald-500 shrink-0" />
@@ -59,8 +59,8 @@ export default function TrialActivationPage() {
               ))}
             </ul>
             <div className="mt-auto pt-6 border-t border-white/5">
-              <p className="text-[10px] text-slate-500 font-mono uppercase">
-                $0.00 Due Today. $9.00/mo after trial. Cancel instantly in dashboard.
+              <p className="text-[10px] text-slate-500 font-mono uppercase leading-relaxed">
+                $0.00 Due Today. $9.00/mo after 14 days. Cancel instantly in dashboard. Includes 14-day 100% money-back guarantee on any plans.
               </p>
             </div>
           </div>
@@ -128,7 +128,7 @@ export default function TrialActivationPage() {
                 </>
               ) : (
                 <>
-                  Initialize 7-Day Trial <ArrowRight className="w-4 h-4" />
+                  Initialize 14-Day Trial <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>

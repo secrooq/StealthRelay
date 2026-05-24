@@ -21,6 +21,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/legal',
     '/legal/refund',
     '/legal/cookie',
+    '/tools/photo-intel',
   ];
 
   const blogSlugs = [
