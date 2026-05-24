@@ -69,6 +69,70 @@ const FALLBACK_POSTS = [
     excerpt: 'From standard client-side PGP to hybrid post-quantum key swaps and dynamic client-side AES-GCM-256 wrapping.',
     author_name: 'ROOT_ADMIN',
     published_at: '2024-05-18T00:00:00.000Z'
+  },
+  {
+    id: 9,
+    slug: 'photo-forensics-osint-exif-dangers',
+    title: 'Photo Forensics and OSINT: How EXIF Metadata Exposes Your Location',
+    excerpt: 'How open-source intelligence analysts use hidden EXIF GPS coordinates, device serial numbers, and timestamps embedded in your photos to track, identify, and geolocate targets.',
+    author_name: 'GHOST_PROTOCOL',
+    published_at: '2026-05-20T00:00:00.000Z'
+  },
+  {
+    id: 10,
+    slug: 'vpn-dns-leak-testing-guide',
+    title: 'How to Test If Your VPN Is Leaking DNS and WebRTC Data',
+    excerpt: 'Step-by-step guide to identifying DNS leaks, WebRTC IP exposure, and IPv6 tunneling failures that silently bypass your VPN and expose your real identity to ISPs and surveillance networks.',
+    author_name: 'OPERATIVE_DELTA',
+    published_at: '2026-05-21T00:00:00.000Z'
+  },
+  {
+    id: 11,
+    slug: 'zero-trust-architecture-startups',
+    title: 'Implementing Zero-Trust Security Architecture for Startups and Small Teams',
+    excerpt: 'A practical blueprint for deploying zero-trust network access, micro-segmentation, and least-privilege identity controls without enterprise budgets or dedicated security staff.',
+    author_name: 'COMMANDER_ALPHA',
+    published_at: '2026-05-22T00:00:00.000Z'
+  },
+  {
+    id: 12,
+    slug: 'browser-fingerprinting-how-websites-track-you',
+    title: 'Browser Fingerprinting: How Websites Track You Without Cookies',
+    excerpt: 'Detailed technical analysis of canvas fingerprinting, WebGL rendering signatures, font enumeration, and audio context analysis used by advertisers and trackers to uniquely identify your browser across the web.',
+    author_name: 'COMMAND_CORE',
+    published_at: '2026-05-22T00:00:00.000Z'
+  },
+  {
+    id: 13,
+    slug: 'disposable-email-addresses-security-guide',
+    title: 'The Complete Guide to Disposable Email Addresses for Online Privacy',
+    excerpt: 'Why using a single email address across multiple services creates a catastrophic correlation vulnerability, and how dynamic cryptographic aliases eliminate this attack vector permanently.',
+    author_name: 'GHOST_PROTOCOL',
+    published_at: '2026-05-23T00:00:00.000Z'
+  },
+  {
+    id: 14,
+    slug: 'dark-web-monitoring-credential-exposure',
+    title: 'Dark Web Monitoring: How to Check If Your Credentials Are Compromised',
+    excerpt: 'Understanding how stolen credentials propagate through underground marketplaces, combo lists, and stealer log ecosystems, and the tactical steps to detect and neutralize exposure before exploitation.',
+    author_name: 'ROOT_ADMIN',
+    published_at: '2026-05-23T00:00:00.000Z'
+  },
+  {
+    id: 15,
+    slug: 'end-to-end-encrypted-file-sharing-explained',
+    title: 'End-to-End Encrypted File Sharing: How It Works and Why It Matters',
+    excerpt: 'A technical deep dive into client-side AES-GCM encryption, ephemeral key exchange, and zero-knowledge storage architectures that guarantee only the sender and recipient can ever access shared files.',
+    author_name: 'COMMANDER_ALPHA',
+    published_at: '2026-05-24T00:00:00.000Z'
+  },
+  {
+    id: 16,
+    slug: 'insider-threat-detection-data-loss-prevention',
+    title: 'Insider Threat Detection and Data Loss Prevention for Remote Teams',
+    excerpt: 'How to architect secure file handling, audit logging, and cryptographic access controls that prevent accidental data exfiltration and malicious insider leaks in distributed work environments.',
+    author_name: 'OPERATIVE_DELTA',
+    published_at: '2026-05-24T00:00:00.000Z'
   }
 ];
 
