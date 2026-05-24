@@ -242,7 +242,7 @@ export default async function RootLayout({
                     ))}
                     <li>
                       <a 
-                        href="https://github.com/stealthrelay/stealthrelay" 
+                        href="https://github.com/secrooq/StealthRelay" 
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="text-[16px] text-slate-400 hover:text-white font-sans transition-colors"
