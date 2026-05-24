@@ -153,16 +153,18 @@ export default function NavMenu() {
                 </Link>
               </div>
             </div>
-
-            {/* Pricing */}
-            <Link
-              href="/pricing"
-              className="text-[13px] font-mono uppercase tracking-widest text-slate-100 hover:text-[#e5c158] transition-colors duration-200"
-            >
-              Pricing
-            </Link>
           </>
         )}
+
+        {/* Pricing */}
+        <Link
+          href="/pricing"
+          className={`text-[13px] font-mono uppercase tracking-widest transition-colors duration-200 ${
+            pathname === '/pricing' ? 'text-[#e5c158]' : 'text-slate-100 hover:text-[#e5c158]'
+          }`}
+        >
+          Pricing
+        </Link>
       </nav>
 
       {/* MOBILE LEFT HAND SIDE MENU (PRODUCTS & TACTICAL GUIDES) */}

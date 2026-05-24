@@ -10,6 +10,7 @@ import FloatingSupportWidget from "@/components/FloatingSupportWidget";
 import Script from "next/script";
 import { getRequestContext } from "@cloudflare/next-on-pages";
 import NavMenu from "@/components/NavMenu";
+import TrialBanner from "@/components/TrialBanner";
 
 const outfit = Outfit({
   variable: "--font-outfit",
@@ -180,6 +181,7 @@ export default async function RootLayout({
         </Script>
         
         <SessionProvider>
+          <TrialBanner />
           <header className="sticky top-0 z-50 w-full border-b border-[#d4af37]/15 bg-[#181714]/90 backdrop-blur-xl">
             <div className="max-w-7xl mx-auto flex h-16 items-center justify-between px-6">
               <Link href="/" className="hidden md:flex items-center gap-2 group">
@@ -247,6 +249,11 @@ export default async function RootLayout({
                       >
                         Open Source (AGPL-3.0)
                       </a>
+                    </li>
+                    <li>
+                      <Link href="/pricing" className="text-[16px] text-slate-400 hover:text-white font-sans transition-colors">
+                        Pricing Plans
+                      </Link>
                     </li>
                     <li>
                       <Link href="/industries" className="text-[16px] text-slate-400 hover:text-white font-sans transition-colors">

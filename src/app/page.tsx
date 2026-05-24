@@ -259,6 +259,15 @@ export default function Home() {
                     <span className="text-[9px] text-slate-500 uppercase">Save hundreds annually</span>
                   </div>
                 </div>
+
+                <div className="mt-6 pt-2">
+                  <Link
+                    href="/pricing"
+                    className="w-full py-3 bg-[#d4af37] hover:bg-white text-black font-mono text-xs font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(212,175,55,0.15)] hover:shadow-[0_0_25px_rgba(255,255,255,0.2)]"
+                  >
+                    Select Plan Core & Unlock
+                  </Link>
+                </div>
               </div>
 
             </div>
