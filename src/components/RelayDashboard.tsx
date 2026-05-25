@@ -701,6 +701,7 @@ export function RelayDashboard() {
                                   onClick={() => handleDeleteDomain(dom.id)}
                                   className="text-slate-500 hover:text-red-400 transition-colors p-1"
                                   title="Delete Custom Domain Suffix"
+                                  aria-label="Delete Custom Domain Suffix"
                                 >
                                   <Trash2 className="w-3.5 h-3.5" />
                                 </button>
@@ -828,6 +829,7 @@ export function RelayDashboard() {
                         onClick={() => handleCopy(alias.alias_address, alias.id)}
                         className="ml-2 p-2 bg-white/5 hover:bg-white/10 text-slate-200 hover:text-white rounded-lg transition-all"
                         title="Copy"
+                        aria-label="Copy address"
                       >
                         {copiedId === alias.id ? <Check className="w-4 h-4 text-[#4ade80]" /> : <Copy className="w-4 h-4" />}
                       </button>
@@ -870,6 +872,7 @@ export function RelayDashboard() {
                     onClick={() => burnAlias(alias.id)}
                     className="p-2.5 text-slate-200 hover:text-red-400 hover:bg-red-950/20 rounded-xl transition-all group-hover:text-slate-100"
                     title="Delete Permanently"
+                    aria-label="Delete Permanently"
                   >
                     <Trash2 className="w-5 h-5" />
                   </button>

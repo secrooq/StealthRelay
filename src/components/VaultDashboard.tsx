@@ -516,7 +516,7 @@ export default function VaultDashboard() {
             />
           </div>
 
-          <button onClick={loadFiles} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-auto md:ml-0" title="Refresh index">
+          <button onClick={loadFiles} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-auto md:ml-0" title="Refresh index" aria-label="Refresh index">
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -635,6 +635,7 @@ export default function VaultDashboard() {
                 onClick={() => setSharingFile(null)} 
                 disabled={isPreparingShare}
                 className="text-slate-400 hover:text-white transition-colors"
+                aria-label="Close"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -777,6 +778,7 @@ export default function VaultDashboard() {
                           setTimeout(() => setCopied(false), 2000);
                         }}
                         className="px-3 py-2 rounded-lg bg-[#d4af37] hover:bg-[#e5c158] text-[#141310] border border-[#d4af37]/20 transition-all flex items-center justify-center shrink-0"
+                        aria-label="Copy share link"
                       >
                         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
