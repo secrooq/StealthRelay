@@ -61,11 +61,20 @@ export const metadata: Metadata = {
     siteName: "StealthRelay",
     locale: "en_US",
     type: "website",
+    images: [
+      {
+        url: "https://stealthrelay.com/og-image.png",
+        width: 1200,
+        height: 1200,
+        alt: "StealthRelay — Zero-Trust Cryptographic Workspace",
+      }
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "StealthRelay | Zero-Trust Cryptographic Digital Immunity",
     description: "Premium zero-knowledge identity masking, EXIF-sterilized file sharing, and self-destructing relays designed for absolute digital security.",
+    images: ["https://stealthrelay.com/og-image.png"],
   },
   other: {
     "geo.region": "US",

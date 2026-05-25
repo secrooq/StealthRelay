@@ -1,4 +1,5 @@
 import { MetadataRoute } from 'next';
+import { getOptionalRequestContext } from '@cloudflare/next-on-pages';
 
 export const runtime = 'edge';
 
@@ -21,10 +22,18 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     '/legal',
     '/legal/refund',
     '/legal/cookie',
+    '/legal/terms',
+    '/legal/privacy',
     '/tools/photo-intel',
+    '/about',
+    '/faq',
+    '/help',
+    '/case-studies',
+    '/resources',
+    '/security',
   ];
 
-  const blogSlugs = [
+  const fallbackBlogSlugs = [
     'quantum-threat-identity',
     'zero-trust-metadata',
     'establishing-stealth-vault',
@@ -43,6 +52,25 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     'insider-threat-detection-data-loss-prevention',
   ];
 
+  let dbBlogSlugs: string[] = [];
+  try {
+    const ctx = getOptionalRequestContext();
+    const env = ctx?.env as any;
+    if (env?.DB) {
+      const result = await env.DB.prepare(
+        "SELECT slug FROM blog_posts WHERE is_published = 1"
+      ).all();
+      if (result && Array.isArray(result.results)) {
+        dbBlogSlugs = result.results.map((row: any) => row.slug);
+      }
+    }
+  } catch (err) {
+    console.error("[SITEMAP] Database query skipped or failed during generation:", err);
+  }
+
+  // Combine and de-duplicate blog slugs
+  const allBlogSlugs = Array.from(new Set([...fallbackBlogSlugs, ...dbBlogSlugs]));
+
   const staticSitemap = routes.map((route) => ({
     url: `${baseUrl}${route}`,
     lastModified: new Date().toISOString().split('T')[0],
@@ -50,7 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: route === '' ? 1.0 : 0.8,
   }));
 
-  const blogSitemap = blogSlugs.map((slug) => ({
+  const blogSitemap = allBlogSlugs.map((slug) => ({
     url: `${baseUrl}/blog/${slug}`,
     lastModified: new Date().toISOString().split('T')[0],
     changeFrequency: 'monthly' as const,

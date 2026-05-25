@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { SecurityEngine } from '../src/workers/securityEngine.worker.ts';
+import { SecurityEngine } from '../src/workers/securityEngine.worker';
 
 describe('SecurityEngine crypto logic', () => {
   it('PBKDF2 key derivation and AES-GCM seal/unseal work correctly', async () => {

@@ -52,8 +52,12 @@ export default {
       }
 
       try {
-        // Decode the actual target hidden in the alias
-        const realTarget = atob(bridgeToken); // Simple decode for POC, can evolve to encrypted token
+        // Decode the actual target hidden in the alias, restoring any stripped base64 padding safely
+        let base64 = bridgeToken;
+        while (base64.length % 4) {
+          base64 += '=';
+        }
+        const realTarget = atob(base64);
         
         console.log(`[BRIDGE] Forwarding outgoing reply from ${maskPart} to real recipient ${realTarget}`);
 
