@@ -685,11 +685,8 @@ export default function PhotoIntelPage() {
           </div>
         </div>
 
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-          
-          {/* Left Column: Dropzone & File Preview */}
-          <div className="lg:col-span-5 space-y-6">
+        {/* Center-Aligned Tactical Container */}
+        <div className="max-w-3xl mx-auto w-full space-y-8">
             <div 
               onDragEnter={handleDrag} 
               onDragOver={handleDrag} 
@@ -747,10 +744,8 @@ export default function PhotoIntelPage() {
                 )}
               </div>
             </div>
-          </div>
 
-          {/* Right Column: Threat Reports & Map */}
-          <div className="lg:col-span-7 space-y-6">
+            {/* Center-aligned forensic scan diagnostics and exposure reports */}
             
             {/* Loading/Forensics Progress Bar */}
             {loading && (
@@ -917,6 +912,66 @@ export default function PhotoIntelPage() {
                   </div>
                 )}
 
+                {/* HIGH-IMPACT FOOTPRINT THREAT MATRIX */}
+                <div className="border border-red-500/20 bg-red-500/[0.01] rounded-2xl p-6 space-y-4 animate-in fade-in duration-300">
+                  <div className="flex items-center gap-2 border-b border-red-500/10 pb-3 text-red-400 font-bold tracking-widest text-[10px] uppercase font-mono">
+                    <AlertTriangle className="w-4 h-4 animate-pulse" /> CRITICAL DOWNSTREAM EXPOSURE DOSSIER
+                  </div>
+                  
+                  <div className="space-y-4">
+                    <p className="text-xs text-slate-300 leading-relaxed font-mono">
+                      EVERY raw photo shared online leaks active trace signatures. Downstream entities silently harvest and weaponize:
+                    </p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="border border-white/5 bg-white/[0.01] p-4 rounded-xl space-y-2">
+                        <h4 className="text-xs font-bold text-red-400 uppercase font-mono flex items-center gap-1.5">
+                          🚨 OSINT GPS Tracking
+                        </h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                          Camera systems embed precise geolocation tags (EXIF). Stalkers, scrapers, and malicious entities reverse-trace these coordinate matrices down to a 5-meter radius to pinpoint your exact home address.
+                        </p>
+                      </div>
+
+                      <div className="border border-white/5 bg-white/[0.01] p-4 rounded-xl space-y-2">
+                        <h4 className="text-xs font-bold text-red-400 uppercase font-mono flex items-center gap-1.5">
+                          🚨 Camera Noise (PRNU)
+                        </h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                          Every camera lens leaves a unique noise signature (PRNU) in the pixels. Ad networks and intelligence systems use this micro-noise as a hardware biometric, linking multiple anonymous accounts back to you.
+                        </p>
+                      </div>
+
+                      <div className="border border-white/5 bg-white/[0.01] p-4 rounded-xl space-y-2">
+                        <h4 className="text-xs font-bold text-red-400 uppercase font-mono flex items-center gap-1.5">
+                          🚨 Steganographic Keys
+                        </h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                          Social platforms and messaging chats silently inject custom byte sequences into pixel channels. These hidden watermarks survive standard crops and map your entire private sharing chain.
+                        </p>
+                      </div>
+
+                      <div className="border border-white/5 bg-white/[0.01] p-4 rounded-xl space-y-2">
+                        <h4 className="text-xs font-bold text-red-400 uppercase font-mono flex items-center gap-1.5">
+                          🚨 Neural AI Profiling
+                        </h4>
+                        <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
+                          Web scraping robots ingest millions of public photos. They scrape capture times and device profiles to match physical location indexes directly with face scans inside automated profiling centers.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-red-500/10 pt-4 flex flex-col items-center text-center space-y-3">
+                    <p className="text-[10px] text-slate-400 font-mono uppercase">
+                      🔒 STEALTHRELAY EDGE REMEDY: Redraws raw pixels via RAM canvas, eradicating EXIF, PRNU noise profiles, and steganographic trackers completely.
+                    </p>
+                    <div className="text-[10px] font-bold text-emerald-400 border border-emerald-500/30 bg-emerald-500/5 px-3 py-1 rounded uppercase tracking-[0.2em] font-mono animate-pulse">
+                      RECOMMENDATION: BLEACH IMMEDIATELY BEFORE PUBLISHING
+                    </div>
+                  </div>
+                </div>
+
                 {/* Action Bleacher Engine Console */}
                 <div className="border border-emerald-500/20 bg-emerald-500/[0.02] rounded-2xl p-6 text-center space-y-4">
                   <div className="flex justify-center text-emerald-400">
@@ -975,9 +1030,6 @@ export default function PhotoIntelPage() {
 
               </div>
             )}
-            
-          </div>
-
         </div>
 
       </div>
