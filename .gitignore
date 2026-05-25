@@ -43,3 +43,7 @@ next-env.d.ts
 # wrangler
 .wrangler/
 .wrangler_home/
+
+# local chrome extension build files (keep private until release)
+/extension
+
