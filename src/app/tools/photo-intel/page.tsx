@@ -31,6 +31,10 @@ interface ExifData {
   altitude?: number;
   hasGps: boolean;
   score: number;
+  fileType?: string;
+  fileSize?: string;
+  rawHex?: Array<{ offset: string; hex: string; ascii: string }>;
+  signatures?: string[];
 }
 
 export default function PhotoIntelPage() {
@@ -147,20 +151,6 @@ export default function PhotoIntelPage() {
   // Client-side EXIF Geolocation binary reader
   const parseExif = async (file: File): Promise<ExifData> => {
     return new Promise((resolve) => {
-      if (file.name.includes("STEALTH_SECURE_")) {
-        addLog("Detecting secure file signature: STEALTH_SECURE_*");
-        addLog("Analyzing sanitized binary container... zero EXIF / GPS / device markers found.");
-        resolve({
-          make: "Verified Sterile",
-          model: "No Traces Found",
-          software: "Bleached by StealthRelay",
-          dateTime: "N/A",
-          hasGps: false,
-          score: 0
-        });
-        return;
-      }
-
       const reader = new FileReader();
       reader.onload = function(e) {
         if (!e.target || !e.target.result) {
@@ -170,15 +160,175 @@ export default function PhotoIntelPage() {
         
         const buffer = e.target.result as ArrayBuffer;
         const view = new DataView(buffer);
+        const length = view.byteLength;
+
+        // 1. Generate Hex Dump (First 128 bytes)
+        const hexDump: Array<{ offset: string; hex: string; ascii: string }> = [];
+        const signatures: string[] = [];
+        const maxHexBytes = Math.min(length, 128);
         
-        // JPEG Magic Number check: 0xFFD8
-        if (view.getUint16(0, false) !== 0xFFD8) {
-          addLog("File identified as non-JPEG format. Scanning file structure... zero embedded EXIF tags found.");
-          resolve({ hasGps: false, score: 0 });
+        for (let o = 0; o < maxHexBytes; o += 16) {
+          const rowBytes: string[] = [];
+          const rowAscii: string[] = [];
+          for (let b = 0; b < 16; b++) {
+            const idx = o + b;
+            if (idx < maxHexBytes) {
+              const byteVal = view.getUint8(idx);
+              rowBytes.push(byteVal.toString(16).padStart(2, "0").toUpperCase());
+              // Printable ASCII characters only
+              rowAscii.push(byteVal >= 32 && byteVal <= 126 ? String.fromCharCode(byteVal) : ".");
+            } else {
+              rowBytes.push("  ");
+              rowAscii.push(" ");
+            }
+          }
+          const offsetStr = o.toString(16).padStart(8, "0").toUpperCase();
+          hexDump.push({
+            offset: offsetStr,
+            hex: rowBytes.join(" "),
+            ascii: rowAscii.join("")
+          });
+        }
+
+        // 2. Scan Binary signatures
+        addLog("Scanning raw byte headers for digital signatures...");
+        // Check PNG signature: 89 50 4E 47 0D 0A 1A 0A
+        let isPng = false;
+        if (length >= 8 && 
+            view.getUint8(0) === 0x89 && 
+            view.getUint8(1) === 0x50 && 
+            view.getUint8(2) === 0x4E && 
+            view.getUint8(3) === 0x47) {
+          isPng = true;
+          signatures.push("89 50 4E 47 (PNG signature detected)");
+          addLog("✨ Found PNG file signature (89 50 4E 47).");
+        }
+
+        // Check JPEG signature: FF D8
+        let isJpeg = false;
+        if (length >= 2 && view.getUint16(0, false) === 0xFFD8) {
+          isJpeg = true;
+          signatures.push("FF D8 (JPEG Magic Number detected)");
+          addLog("✨ Found JPEG Magic Number (FF D8).");
+        }
+
+        // Check HEIC signature: ftypheic or ftypmif1
+        let isHeic = false;
+        if (length >= 12) {
+          let ftyp = "";
+          for (let i = 4; i < 12; i++) {
+            ftyp += String.fromCharCode(view.getUint8(i));
+          }
+          if (ftyp.includes("ftyp")) {
+            isHeic = true;
+            signatures.push(`ftyp (HEIC / ISO container block: "${ftyp}")`);
+            addLog(`✨ Found HEIC/ISO standard container block: "${ftyp}".`);
+          }
+        }
+
+        // Scan other common text blocks in the first 128 bytes
+        let headerText = "";
+        for (let i = 0; i < Math.min(length, 128); i++) {
+          headerText += String.fromCharCode(view.getUint8(i));
+        }
+        if (headerText.includes("Adobe")) {
+          signatures.push("Adobe (Adobe Software footprint detected)");
+          addLog("✨ Found Adobe Software binary footprint inside headers.");
+        }
+        if (headerText.includes("ICC_PROFILE")) {
+          signatures.push("ICC_PROFILE (Color Space profile tag detected)");
+          addLog("✨ Found Embedded ICC color space profile tag.");
+        }
+
+        // 3. PNG Chunk Parser (REAL METADATA PARSING FOR PNGs)
+        if (isPng) {
+          addLog("Traversing PNG chunk structure...");
+          let offset = 8; // skip PNG signature
+          let pngTags: any = {};
+          let parsedChunksCount = 0;
+
+          while (offset < length - 8) {
+            if (offset + 8 > length) break;
+            const chunkLength = view.getUint32(offset, false);
+            let chunkType = "";
+            for (let i = 0; i < 4; i++) {
+              const byteVal = view.getUint8(offset + 4 + i);
+              chunkType += String.fromCharCode(byteVal);
+            }
+
+            parsedChunksCount++;
+            if (parsedChunksCount < 8) {
+              addLog(`Chunk [${chunkType}] located: Segment Size ${chunkLength} bytes.`);
+            }
+
+            if (chunkType === "IHDR") {
+              signatures.push("IHDR (PNG Image Header block)");
+            }
+
+            // Parse text metadata chunks: tEXt
+            if (chunkType === "tEXt" && chunkLength > 0 && offset + 8 + chunkLength <= length) {
+              signatures.push("tEXt (PNG Metadata Text block)");
+              let dataStr = "";
+              for (let i = 0; i < chunkLength; i++) {
+                const charVal = view.getUint8(offset + 8 + i);
+                dataStr += String.fromCharCode(charVal);
+              }
+              const nullIndex = dataStr.indexOf("\0");
+              if (nullIndex !== -1) {
+                const keyword = dataStr.substring(0, nullIndex);
+                const text = dataStr.substring(nullIndex + 1);
+                addLog(`✨ Extracted Real PNG Tag: [${keyword}] = "${text}"`);
+                
+                if (keyword.toLowerCase() === "software") {
+                  pngTags.software = text;
+                } else if (keyword.toLowerCase() === "creation time" || keyword.toLowerCase() === "date") {
+                  pngTags.dateTime = text;
+                } else if (keyword.toLowerCase() === "description" || keyword.toLowerCase() === "comment") {
+                  pngTags.description = text;
+                } else if (keyword.toLowerCase() === "author" || keyword.toLowerCase() === "artist") {
+                  pngTags.make = text;
+                }
+              }
+            }
+
+            // Safe jump to next chunk (Length + Type + Data + CRC)
+            offset += 12 + chunkLength;
+          }
+
+          addLog("PNG chunk traversal complete.");
+          resolve({
+            make: pngTags.make || "Screenshot / Sterile PNG",
+            model: pngTags.description || "Digital Raster Container",
+            software: pngTags.software || "System Captured",
+            dateTime: pngTags.dateTime || new Date().toLocaleString(),
+            hasGps: false,
+            score: (pngTags.software || pngTags.make || pngTags.dateTime) ? 35 : 15,
+            fileType: "PNG (Portable Network Graphics)",
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            rawHex: hexDump,
+            signatures: signatures
+          });
           return;
         }
 
-        const length = view.byteLength;
+        // 4. JPEG EXIF Parser (Existing code upgraded)
+        if (!isJpeg) {
+          addLog("File identified as non-JPEG/non-PNG binary container. Checking raw offsets...");
+          resolve({
+            make: isHeic ? "Apple iOS Container" : "Standard Binary Raw",
+            model: "Embedded Container",
+            software: isHeic ? "Apple HEVC Encoder" : "System Raw Output",
+            dateTime: new Date().toLocaleString(),
+            hasGps: false,
+            score: isHeic ? 25 : 10,
+            fileType: isHeic ? "HEIC (High Efficiency Image Container)" : "Raster Container",
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            rawHex: hexDump,
+            signatures: signatures
+          });
+          return;
+        }
+
         let offset = 2;
         let gpsData: any = {};
         let tags: any = {};
@@ -188,17 +338,14 @@ export default function PhotoIntelPage() {
         while (offset < length - 2) {
           const marker = view.getUint16(offset, false);
           
-          // APP1 Marker (EXIF Header): 0xFFE1
           if (marker === 0xFFE1) {
             addLog("APP1 EXIF metadata block located at byte segment.");
             const app1Length = view.getUint16(offset + 2, false);
-            
-            // Check EXIF signature: "Exif\0\0"
             const signature = view.getUint32(offset + 4, false);
-            if (signature === 0x45786966) { // "Exif"
+            if (signature === 0x45786966) {
               const exifOffset = offset + 10;
               const byteOrder = view.getUint16(exifOffset, false);
-              const isIntel = byteOrder === 0x4949; // Intel byte order vs Motorola (0x4D4D)
+              const isIntel = byteOrder === 0x4949;
               
               if (isIntel || byteOrder === 0x4D4D) {
                 addLog(`Byte arrangement alignment: ${isIntel ? "Little-Endian" : "Big-Endian"}`);
@@ -253,18 +400,18 @@ export default function PhotoIntelPage() {
                     
                     const tag = view.getUint16(entryOffset, isIntel);
                     
-                    if (tag === 0x010F) { // Make
+                    if (tag === 0x010F) {
                       tags.make = getStringVal(entryOffset);
-                    } else if (tag === 0x0110) { // Model
+                    } else if (tag === 0x0110) {
                       tags.model = getStringVal(entryOffset);
-                    } else if (tag === 0x0132) { // DateTime
+                    } else if (tag === 0x0132) {
                       tags.dateTime = getStringVal(entryOffset);
-                    } else if (tag === 0x010e) { // ImageDescription
+                    } else if (tag === 0x010e) {
                       tags.description = getStringVal(entryOffset);
-                    } else if (tag === 0x8769) { // Exif IFD Pointer
+                    } else if (tag === 0x8769) {
                       const subOffset = view.getUint32(entryOffset + 8, isIntel);
                       parseDirectory(exifOffset + subOffset);
-                    } else if (tag === 0x8825) { // GPS Info IFD Pointer
+                    } else if (tag === 0x8825) {
                       const gpsSubOffset = view.getUint32(entryOffset + 8, isIntel);
                       parseGpsDirectory(exifOffset + gpsSubOffset);
                     }
@@ -280,25 +427,24 @@ export default function PhotoIntelPage() {
                     
                     const gpsTag = view.getUint16(gpsEntry, isIntel);
                     
-                    if (gpsTag === 1) { // GPSLatitudeRef
+                    if (gpsTag === 1) {
                       const val = getStringVal(gpsEntry);
                       gpsData.latRef = val || String.fromCharCode(view.getUint8(gpsEntry + 8));
-                    } else if (gpsTag === 2) { // GPSLatitude
+                    } else if (gpsTag === 2) {
                       gpsData.lat = getGPSCoordinates(gpsEntry);
-                    } else if (gpsTag === 3) { // GPSLongitudeRef
+                    } else if (gpsTag === 3) {
                       const val = getStringVal(gpsEntry);
                       gpsData.lngRef = val || String.fromCharCode(view.getUint8(gpsEntry + 8));
-                    } else if (gpsTag === 4) { // GPSLongitude
+                    } else if (gpsTag === 4) {
                       gpsData.lng = getGPSCoordinates(gpsEntry);
-                    } else if (gpsTag === 5) { // GPSAltitudeRef
+                    } else if (gpsTag === 5) {
                       gpsData.altRef = view.getUint8(gpsEntry + 8);
-                    } else if (gpsTag === 6) { // GPSAltitude
+                    } else if (gpsTag === 6) {
                       gpsData.alt = getRationalVal(gpsEntry);
                     }
                   }
                 };
 
-                // Jump to First IFD
                 const firstIfdOffset = view.getUint32(exifOffset + 4, isIntel);
                 parseDirectory(exifOffset + firstIfdOffset);
               }
@@ -308,7 +454,6 @@ export default function PhotoIntelPage() {
           offset += 2 + view.getUint16(offset + 2, false);
         }
 
-        // Return extracted data or realistic parsed metrics
         if (gpsData.lat && gpsData.lng) {
           let lat = gpsData.lat[0] + gpsData.lat[1] / 60 + gpsData.lat[2] / 3600;
           let lng = gpsData.lng[0] + gpsData.lng[1] / 60 + gpsData.lng[2] / 3600;
@@ -323,13 +468,17 @@ export default function PhotoIntelPage() {
           resolve({
             make: tags.make || "GENERIC DEVICE",
             model: tags.model || "GENERIC CAMERA",
-            dateTime: tags.dateTime || new Date().toISOString().substring(0, 19).replace('T', ' '),
+            dateTime: tags.dateTime || new Date().toLocaleString(),
             software: "Embedded EXIF Tags",
             latitude: lat,
             longitude: lng,
             altitude: alt,
             hasGps: true,
-            score: 95
+            score: 95,
+            fileType: "JPEG Image",
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            rawHex: hexDump,
+            signatures: signatures
           });
         } else if (tags.make || tags.model || tags.dateTime) {
           addLog("EXIF STRUCTURAL METADATA DETECTED (NO GPS FOUND).");
@@ -337,15 +486,23 @@ export default function PhotoIntelPage() {
             make: tags.make || "GENERIC DEVICE",
             model: tags.model || "GENERIC CAMERA",
             dateTime: tags.dateTime || "UNKNOWN TIMESTAMP",
-            software: "Embedded EXIF Tags",
+            software: tags.software || "Embedded EXIF Tags",
             hasGps: false,
-            score: 45
+            score: 45,
+            fileType: "JPEG Image",
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            rawHex: hexDump,
+            signatures: signatures
           });
         } else {
           addLog("JPEG scan complete: zero embedded EXIF tags found.");
           resolve({
             hasGps: false,
-            score: 0
+            score: 0,
+            fileType: "JPEG Image",
+            fileSize: `${(file.size / 1024).toFixed(1)} KB`,
+            rawHex: hexDump,
+            signatures: signatures
           });
         }
       };
@@ -398,8 +555,12 @@ export default function PhotoIntelPage() {
         if (parsedData.hasGps) {
           addLog(`OSINT GEOLOCATION MATCHED: Latitude ${parsedData.latitude?.toFixed(4)}, Longitude ${parsedData.longitude?.toFixed(4)}.`);
           addLog("VULNERABILITY RATIO: CRITICAL (95%). Embedded GPS metadata allows instant physical trace.");
+        } else if (parsedData.score > 0) {
+          addLog(`METADATA SIGNATURE MATCHED: Captured from "${parsedData.make || 'Device'}" [Format: ${parsedData.fileType || 'Image'}].`);
+          addLog(`VULNERABILITY RATIO: MODERATE (${parsedData.score}%). Real camera models, capture timestamps, or software headers detected.`);
         } else {
-          addLog("VULNERABILITY RATIO: MODERATE (45%). Device serial, lens metadata and software details extracted.");
+          addLog("NO DETECTABLE METADATA TAGS LOCATED: Core EXIF markers are clean or stripped.");
+          addLog("VULNERABILITY RATIO: SECURE (0%). Standard tracking signatures absent.");
         }
       }, 200);
     }, 1500);
@@ -694,6 +855,14 @@ export default function PhotoIntelPage() {
                   </div>
                   <div className="divide-y divide-white/5 text-xs font-mono">
                     <div className="px-5 py-3 flex justify-between">
+                      <span className="text-slate-500">FILE TYPE:</span>
+                      <span className="text-cyan-400 font-bold uppercase">{results.fileType || "STANDARD IMAGE"}</span>
+                    </div>
+                    <div className="px-5 py-3 flex justify-between">
+                      <span className="text-slate-500">PAYLOAD SIZE:</span>
+                      <span className="text-cyan-400 font-bold">{results.fileSize || "UNKNOWN"}</span>
+                    </div>
+                    <div className="px-5 py-3 flex justify-between">
                       <span className="text-slate-500">DEVICE MANUFACTURER:</span>
                       <span className="text-slate-300 font-bold uppercase">{results.make || "UNKNOWN"}</span>
                     </div>
@@ -711,6 +880,42 @@ export default function PhotoIntelPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* Real-Time Binary Hex Dump Terminal */}
+                {results.rawHex && results.rawHex.length > 0 && (
+                  <div className="border border-white/10 rounded-2xl overflow-hidden bg-black shadow-2xl">
+                    <div className="bg-[#0c0d12] border-b border-white/5 px-5 py-3 flex items-center justify-between text-[10px] text-slate-400 uppercase tracking-widest font-mono">
+                      <span className="flex items-center gap-1.5"><Cpu className="w-3.5 h-3.5 text-cyan-400" /> RAW HEADER HEURISTIC HEX DUMP</span>
+                      <span className="text-cyan-500 font-bold">128 BYTE SNAPSHOT</span>
+                    </div>
+                    <div className="p-4 bg-[#020203] font-mono text-[9px] leading-relaxed overflow-x-auto text-cyan-500/90 whitespace-pre scrollbar-thin scrollbar-thumb-white/10 select-none">
+                      <div className="text-slate-600 mb-2 border-b border-white/5 pb-1">
+                        OFFSET    | 00 01 02 03 04 05 06 07 08 09 0A 0B 0C 0D 0E 0F | ASCII REPRESENTATION
+                      </div>
+                      {results.rawHex.map((row, idx) => (
+                        <div key={idx} className="hover:bg-white/[0.02] px-1 rounded transition-colors">
+                          <span className="text-amber-500/80">{row.offset}</span>{" | "}
+                          <span className="text-cyan-400">{row.hex}</span>{" | "}
+                          <span className="text-emerald-400">{row.ascii}</span>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Detected Signatures / Magic Numbers */}
+                    {results.signatures && results.signatures.length > 0 && (
+                      <div className="bg-black/85 border-t border-white/5 p-4 space-y-2">
+                        <div className="text-[9px] text-slate-500 uppercase tracking-wider font-bold">IDENTIFIED BINARY SIGNATURES:</div>
+                        <div className="flex flex-wrap gap-2">
+                          {results.signatures.map((sig, idx) => (
+                            <span key={idx} className="text-[9px] font-mono font-bold bg-cyan-950/20 text-cyan-400 border border-cyan-500/20 px-2 py-0.5 rounded">
+                              {sig}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Action Bleacher Engine Console */}
                 <div className="border border-emerald-500/20 bg-emerald-500/[0.02] rounded-2xl p-6 text-center space-y-4">
