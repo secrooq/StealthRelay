@@ -430,6 +430,7 @@ export default function GuestSecretUploader() {
                             type="button" 
                             onClick={() => removeFile(index)} 
                             className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                            aria-label="Remove file"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
