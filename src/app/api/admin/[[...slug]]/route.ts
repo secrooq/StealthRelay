@@ -202,54 +202,50 @@ export async function GET(request: Request, context: { params: Promise<{ slug?: 
 
       if (db) {
         try {
-          const fileStats: any = await db.prepare(`
-            SELECT COUNT(*) as total_files, COALESCE(SUM(file_size), 0) as total_bytes
-            FROM vault_files
-          `).first();
+          // ⚡ Bolt: Batch sequential database queries to prevent N+1 network latency in serverless environments.
+          const [fileStatsRes, emailStatsRes, userStatsRes, secretStatsRes] = await db.batch([
+            db.prepare(`
+              SELECT COUNT(*) as total_files, COALESCE(SUM(file_size), 0) as total_bytes
+              FROM vault_files
+            `),
+            db.prepare(`
+              SELECT COUNT(*) as total_aliases, COALESCE(SUM(forward_count), 0) as total_forwards
+              FROM relay_aliases
+            `),
+            db.prepare(`
+              SELECT COUNT(DISTINCT user_id) as total_users
+              FROM vault_users
+            `),
+            db.prepare(`
+              SELECT COUNT(*) as active_secrets
+              FROM stealth_secrets
+              WHERE is_viewed = 0 AND expires_at > datetime('now')
+            `)
+          ]);
+
+          const fileStats: any = fileStatsRes?.results?.[0];
           if (fileStats) {
             fileCount = Number(fileStats.total_files || 0);
             totalCapacity = Number(fileStats.total_bytes || 0);
           }
-        } catch (e: any) {
-          logger.error("ADMIN_STATS: Failed to query vault_files.", e.message);
-        }
 
-        try {
-          const emailStats: any = await db.prepare(`
-            SELECT COUNT(*) as total_aliases, COALESCE(SUM(forward_count), 0) as total_forwards
-            FROM relay_aliases
-          `).first();
+          const emailStats: any = emailStatsRes?.results?.[0];
           if (emailStats) {
             aliasCount = Number(emailStats.total_aliases || 0);
             forwardCount = Number(emailStats.total_forwards || 0);
           }
-        } catch (e: any) {
-          logger.error("ADMIN_STATS: Failed to query relay_aliases.", e.message);
-        }
 
-        try {
-          const userStats: any = await db.prepare(`
-            SELECT COUNT(DISTINCT user_id) as total_users 
-            FROM vault_users
-          `).first();
+          const userStats: any = userStatsRes?.results?.[0];
           if (userStats) {
             userCount = Number(userStats.total_users || 0);
           }
-        } catch (e: any) {
-          logger.error("ADMIN_STATS: Failed to query vault_users.", e.message);
-        }
 
-        try {
-          const secretStats: any = await db.prepare(`
-            SELECT COUNT(*) as active_secrets 
-            FROM stealth_secrets 
-            WHERE is_viewed = 0 AND expires_at > datetime('now')
-          `).first();
+          const secretStats: any = secretStatsRes?.results?.[0];
           if (secretStats) {
             secretCount = Number(secretStats.active_secrets || 0);
           }
         } catch (e: any) {
-          logger.error("ADMIN_STATS: Failed to query stealth_secrets.", e.message);
+          logger.error("ADMIN_STATS: Failed to execute batched query.", e.message);
         }
       }
 
