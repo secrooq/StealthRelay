@@ -157,19 +157,19 @@ export async function getSubscriptionStatus(userId: string): Promise<UserSubscri
       if (sub.status === 'EXPIRED' || (sub.plan === 'CONTRACTOR' && sub.status === 'ACTIVE')) {
         try {
           logger.info(`[TRIAL_EXPIRED_PURGE] 3 Days Past Expiration. Purging expired trial data for user: ${cleanEmail}`);
-          await db.prepare("DELETE FROM vault_files WHERE user_id = ?").bind(cleanEmail).run();
-          await db.prepare("DELETE FROM relay_aliases WHERE user_id = ?").bind(cleanEmail).run();
-          await db.prepare("DELETE FROM user_mailboxes WHERE user_id = ?").bind(cleanEmail).run();
-          await db.prepare("DELETE FROM custom_domains WHERE user_id = ?").bind(cleanEmail).run();
-          await db.prepare("DELETE FROM vault_users WHERE user_id = ?").bind(cleanEmail).run();
-          
-          // Update subscription status to EXPIRED permanently
           const now = new Date().toISOString();
-          await db.prepare(`
-            UPDATE user_subscriptions 
-            SET status = 'EXPIRED', plan = 'CONTRACTOR', updated_at = ?
-            WHERE user_id = ?
-          `).bind(now, cleanEmail).run();
+          await db.batch([
+            db.prepare("DELETE FROM vault_files WHERE user_id = ?").bind(cleanEmail),
+            db.prepare("DELETE FROM relay_aliases WHERE user_id = ?").bind(cleanEmail),
+            db.prepare("DELETE FROM user_mailboxes WHERE user_id = ?").bind(cleanEmail),
+            db.prepare("DELETE FROM custom_domains WHERE user_id = ?").bind(cleanEmail),
+            db.prepare("DELETE FROM vault_users WHERE user_id = ?").bind(cleanEmail),
+            db.prepare(`
+              UPDATE user_subscriptions
+              SET status = 'EXPIRED', plan = 'CONTRACTOR', updated_at = ?
+              WHERE user_id = ?
+            `).bind(now, cleanEmail)
+          ]);
 
           sub.status = 'EXPIRED';
         } catch (purgeErr) {
