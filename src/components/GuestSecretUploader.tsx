@@ -430,6 +430,7 @@ export default function GuestSecretUploader() {
                             type="button" 
                             onClick={() => removeFile(index)} 
                             className="p-2 text-slate-500 hover:text-red-400 transition-colors"
+                            aria-label="Remove file"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
@@ -475,6 +476,8 @@ export default function GuestSecretUploader() {
                   </div>
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={usePassword}
                     onClick={() => setUsePassword(!usePassword)}
                     className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${usePassword ? 'bg-[#d4af37]' : 'bg-white/10'}`}
                   >
@@ -496,6 +499,7 @@ export default function GuestSecretUploader() {
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                     </button>
@@ -524,6 +528,8 @@ export default function GuestSecretUploader() {
                   </div>
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={stripMetadata}
                     onClick={() => setStripMetadata(!stripMetadata)}
                     className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${stripMetadata ? 'bg-[#4ade80]' : 'bg-white/10'}`}
                   >
@@ -544,6 +550,8 @@ export default function GuestSecretUploader() {
                   </div>
                   <button
                     type="button"
+                    role="switch"
+                    aria-checked={anonymizeFilenames}
                     onClick={() => setAnonymizeFilenames(!anonymizeFilenames)}
                     className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${anonymizeFilenames ? 'bg-[#4ade80]' : 'bg-white/10'}`}
                   >
