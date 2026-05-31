@@ -516,7 +516,12 @@ export default function VaultDashboard() {
             />
           </div>
 
-          <button onClick={loadFiles} className="text-slate-400 hover:text-white transition-colors shrink-0 ml-auto md:ml-0" title="Refresh index">
+          <button
+            onClick={loadFiles}
+            className="text-slate-400 hover:text-white transition-colors shrink-0 ml-auto md:ml-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/50 rounded p-1"
+            aria-label="Refresh index"
+            title="Refresh index"
+          >
             <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
           </button>
         </div>
@@ -634,7 +639,8 @@ export default function VaultDashboard() {
               <button 
                 onClick={() => setSharingFile(null)} 
                 disabled={isPreparingShare}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="text-slate-400 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#d4af37]/50 rounded p-1"
+                aria-label="Close share dialog"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -776,7 +782,8 @@ export default function VaultDashboard() {
                           setCopied(true);
                           setTimeout(() => setCopied(false), 2000);
                         }}
-                        className="px-3 py-2 rounded-lg bg-[#d4af37] hover:bg-[#e5c158] text-[#141310] border border-[#d4af37]/20 transition-all flex items-center justify-center shrink-0"
+                        className="px-3 py-2 rounded-lg bg-[#d4af37] hover:bg-[#e5c158] text-[#141310] border border-[#d4af37]/20 transition-all flex items-center justify-center shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+                        aria-label="Copy share link"
                       >
                         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
