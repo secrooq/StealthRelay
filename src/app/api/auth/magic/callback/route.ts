@@ -156,7 +156,7 @@ export async function GET(req: Request) {
 
             function addLog(text, isError = false) {
               const div = document.createElement('div');
-              div.innerHTML = '&gt; ' + text;
+              div.textContent = '> ' + text;
               if (isError) div.className = 'error-text';
               logBox.appendChild(div);
               logBox.scrollTop = logBox.scrollHeight;
@@ -172,8 +172,8 @@ export async function GET(req: Request) {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: new URLSearchParams({
-                  email: ${JSON.stringify(email)},
-                  password: ${JSON.stringify(token)},
+                  email: ${JSON.stringify(email).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')},
+                  password: ${JSON.stringify(token).replace(/</g, '\\u003c').replace(/>/g, '\\u003e')},
                   action: 'magic_login',
                   redirect: 'false',
                   callbackUrl: '/dashboard'
